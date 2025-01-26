@@ -1,0 +1,11 @@
+
+# IDE settings
+.vscode/
+.idea/
+# Python
+__pycache__/
+*.pyc
+*.avi
+*.mp4
+*.log
+bin/*
