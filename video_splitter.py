@@ -24,6 +24,11 @@ class VideoSplitter:
         self.early_exit = False  # 保留标志，用于其他功能
         self.buffer_time = buffer_time  # 添加前后缓冲时间（秒）
         self.playback_speed = max(0.1, min(playback_speed, 16.0))  # 限制播放速度范围在 0.1-16 倍之间
+        self.exclude_regions = [
+            # 默认排除左上角区域 (x, y, width, height)
+            {'x': 550, 'y': 46, 'w': 340, 'h': 55}
+        ]
+        print("已配置排除左上角时间显示区域")
         print(f"当前播放速度: {self.playback_speed}x")
         
         # 配置 Intel GPU 加速
@@ -147,6 +152,24 @@ class VideoSplitter:
         if not cap.isOpened():
             raise Exception("无法打开视频文件")
 
+        # 获取第一帧来确定视频尺寸
+        ret, first_frame = cap.read()
+        if not ret:
+            raise Exception("无法读取视频帧")
+        
+        # 根据视频尺寸调整排除区域
+        frame_height, frame_width = first_frame.shape[:2]
+        adjusted_exclude_regions = []
+        for region in self.exclude_regions:
+            # 确保排除区域不超过视频尺寸
+            adj_region = region.copy()
+            adj_region['w'] = min(region['w'], frame_width)
+            adj_region['h'] = min(region['h'], frame_height)
+            adjusted_exclude_regions.append(adj_region)
+        self.exclude_regions = adjusted_exclude_regions
+        
+        cap.set(cv2.CAP_PROP_POS_FRAMES, 0)  # 重置到视频开始
+
         total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
         fps = int(cap.get(cv2.CAP_PROP_FPS))
         frame_count = 0
@@ -179,6 +202,11 @@ class VideoSplitter:
                 gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
                 gray = cv2.GaussianBlur(gray, (21, 21), 0)
             
+            # 在排除区域内填充黑色
+            for region in self.exclude_regions:
+                gray[region['y']:region['y']+region['h'], 
+                     region['x']:region['x']+region['w']] = 0
+            
             if self.prev_frame is None:
                 self.prev_frame = gray
                 continue
@@ -189,8 +217,19 @@ class VideoSplitter:
             thresh = cv2.dilate(thresh, None, iterations=2)
             contours, _ = cv2.findContours(thresh.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
             
-            # 在预览窗口中绘制检测到的动作区域
+            # 在预览窗口中绘制检测到的动作区域和排除区域
             display_frame = frame.copy()
+            
+            # 绘制排除区域（红色半透明矩形）
+            overlay = display_frame.copy()
+            for region in self.exclude_regions:
+                cv2.rectangle(overlay, 
+                            (region['x'], region['y']), 
+                            (region['x'] + region['w'], region['y'] + region['h']), 
+                            (0, 0, 255), 
+                            -1)  # -1 表示填充矩形
+            cv2.addWeighted(overlay, 0.3, display_frame, 0.7, 0, display_frame)
+            
             motion_detected = False
             
             for contour in contours:
@@ -269,30 +308,38 @@ class VideoSplitter:
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
 
+        # 获取输入视频的基础文件名（不含扩展名）
+        base_filename = os.path.splitext(os.path.basename(video_path))[0]
+
         for i, segment in enumerate(self.motion_segments):
             try:
-                # 设置输出文件名
-                timestamp = datetime.now().strftime('%Y%m%d_%H%M%S_%f')
-                output_path = os.path.join(output_dir, f"动作片段_{i+1}_{timestamp}.mp4")
-
+                # 格式化开始和结束时间
                 start_time = segment['start']
-                duration = segment['end'] - start_time
+                end_time = segment['end']
+                start_str = self.format_time(start_time).replace(":", "_")
+                end_str = self.format_time(end_time).replace(":", "_")
+                
+                # 设置新的输出文件名格式
+                output_filename = f"{base_filename}_片段{i+1}_{start_str}到{end_str}.mp4"
+                output_path = os.path.join(output_dir, output_filename)
+
+                duration = end_time - start_time
 
                 # 添加时间信息输出
                 print(f"\n正在切割片段 {i+1}:")
                 print(f"开始时间: {self.format_time(start_time)}")
-                print(f"结束时间: {self.format_time(segment['end'])}")
+                print(f"结束时间: {self.format_time(end_time)}")
                 print(f"片段时长: {self.format_time(duration)}")
 
                 if self.ffmpeg_path:
-                    # 使用最简单的 FFmpeg 命令进行切割
+                    # 使用FFmpeg命令进行切割
                     cmd = [
                         self.ffmpeg_path,
-                        '-i', video_path,         # 输入文件
-                        '-ss', str(start_time),   # 开始时间
-                        '-t', str(duration),      # 持续时间
-                        '-c', 'copy',             # 直接复制流，不重新编码
-                        '-y',                     # 覆盖已存在的文件
+                        '-i', video_path,
+                        '-ss', str(start_time),
+                        '-t', str(duration),
+                        '-c', 'copy',
+                        '-y',
                         output_path
                     ]
 
@@ -328,7 +375,7 @@ if __name__ == "__main__":
     parser.add_argument('--min-area', type=int, default=1000, help='最小检测区域')
     parser.add_argument('--scale', type=float, default=0.4, help='预览窗口缩放比例')
     parser.add_argument('--cpu', action='store_true', help='强制使用 CPU 处理')
-    parser.add_argument('--speed', type=float, default=1.0, 
+    parser.add_argument('--speed', type=float, default=2.0, 
                       help='视频处理速度倍率 (0.1-16.0，默认1.0)')
     
     args = parser.parse_args()  # 修复这里的错误
