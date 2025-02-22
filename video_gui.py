@@ -371,7 +371,7 @@ class VideoSplitterGUI(QMainWindow):
 
         # 创建并启动检测线程
         self.detection_thread = DetectionThread(self.splitter, self.file_path.text())
-        self.detection_thread.progress.connect(self.update_progress)
+        self.detection_thread.progress.connect(self.update_split_progress)  # 修改这里，使用正确的方法名
         self.detection_thread.finished.connect(self.detection_finished)
         self.detection_thread.error.connect(self.detection_error)
         self.detection_thread.start()
