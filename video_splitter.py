@@ -28,6 +28,7 @@ class VideoSplitter:
             # 默认排除左上角区域 (x, y, width, height)
             {'x': 550, 'y': 46, 'w': 340, 'h': 55}
         ]
+        self.progress_callback = None  # 添加进度回调函数
         print("已配置排除左上角时间显示区域")
         print(f"当前播放速度: {self.playback_speed}x")
         
@@ -146,6 +147,10 @@ class VideoSplitter:
         print(f"总时长: {self.format_time(total_duration)}")
         print(f"合并后的片段数量: {len(self.motion_segments)}")
 
+    def set_progress_callback(self, callback):
+        """设置进度回调函数"""
+        self.progress_callback = callback
+
     def detect_motion_points(self, video_path):
         """使用 OpenCL 加速的动作检测并显示动作区域，合并连续动作片段"""
         cap = self.get_hardware_decoder(video_path)
@@ -192,6 +197,11 @@ class VideoSplitter:
 
             # 调整帧计数和时间计算，考虑播放速度
             current_time = (frame_count / fps) * self.playback_speed
+
+            # 更新进度
+            progress = (frame_count / total_frames) * 100
+            if self.progress_callback:
+                self.progress_callback(progress)
     
             if self.use_gpu:
                 gpu_frame = cv2.UMat(frame)
@@ -263,9 +273,8 @@ class VideoSplitter:
                     })
                     segment_start = None
             
-            # 显示处理进度
+            # 显示处理进度（保留控制台输出）
             if frame_count % fps == 0:
-                progress = (frame_count / total_frames) * 100
                 print(f"\r处理进度: {progress:.1f}%", end="")
             
             # 调整预览窗口大小并显示
@@ -308,22 +317,27 @@ class VideoSplitter:
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
 
-        # 获取输入视频的基础文件名（不含扩展名）
+        # 获取基础文件名（不包含扩展名）
         base_filename = os.path.splitext(os.path.basename(video_path))[0]
-
+        
+        total_segments = len(self.motion_segments)
         for i, segment in enumerate(self.motion_segments):
             try:
+                # 计算当前进度
+                current_progress = ((i + 1) / total_segments) * 100
+                if self.progress_callback:
+                    self.progress_callback(current_progress)
+
                 # 格式化开始和结束时间
                 start_time = segment['start']
                 end_time = segment['end']
                 start_str = self.format_time(start_time).replace(":", "_")
                 end_str = self.format_time(end_time).replace(":", "_")
+                duration = end_time - start_time
                 
                 # 设置新的输出文件名格式
                 output_filename = f"{base_filename}_片段{i+1}_{start_str}到{end_str}.mp4"
                 output_path = os.path.join(output_dir, output_filename)
-
-                duration = end_time - start_time
 
                 # 添加时间信息输出
                 print(f"\n正在切割片段 {i+1}:")
@@ -343,16 +357,17 @@ class VideoSplitter:
                         output_path
                     ]
 
-                    print(f"\n正在切割片段 {i+1}...")
+                    print(f"\n正在切割片段 {i+1}/{total_segments}...")
                     subprocess.run(cmd, check=True)
                     print(f"已保存片段 {i+1}: {output_path}")
-                else:
-                    print(f"警告: 未找到 FFmpeg，跳过片段 {i+1}")
 
             except Exception as e:
-                print(f"处理片段 {i+1} 时出错: {str(e)}")
+                print(f"处理片段 {i+1}/{total_segments} 时出错: {str(e)}")
                 continue
 
+        # 完成时设置进度为100%
+        if self.progress_callback:
+            self.progress_callback(100)
         print("视频切割完成！")
 
 def signal_handler(signum, frame):

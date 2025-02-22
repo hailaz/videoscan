@@ -1,25 +1,33 @@
-# 工具介绍
+# 命令使用教程
 
-## FinalShell SSH
-
-FinalShell 是一体化的服务器远程管理工具，支持 SSH 终端、SFTP 文件传输、文本编辑等功能。它具有以下特点：
-
-- 全功能 SSH 客户端
-- SFTP 文件传输
-- 系统监控
-- 内置文本编辑器
-- 多标签和分屏支持
-- 支持 Windows/Linux/Mac 系统
-
-### 下载地址
-
-- Windows 版本：http://www.hostbuf.com/downloads/finalshell_install.exe
-- Mac 版本：http://www.hostbuf.com/downloads/finalshell_install.pkg
-- Linux 版本安装命令：
+## 安装依赖
 ```bash
-wget www.hostbuf.com/downloads/finalshell_install_linux.sh
-chmod +x finalshell_install_linux.sh
-./finalshell_install_linux.sh
+pip install -r requirements.txt
 ```
 
-# videoscan
+## 使用说明
+
+### 1. 基础命令
+```bash
+python main.py --help  # 查看帮助信息
+python main.py run     # 运行主程序
+```
+
+### 2. 参数说明
+- `--config`: 指定配置文件路径
+- `--output`: 指定输出目录
+- `--verbose`: 显示详细日志
+
+### 3. 示例
+```bash
+# 使用自定义配置文件运行
+python main.py run --config custom_config.yaml
+
+# 指定输出目录
+python main.py run --output ./results
+```
+
+## 注意事项
+1. 请确保 Python 版本 >= 3.8
+2. 运行前请先安装所需依赖
+3. 配置文件必须符合 YAML 格式
