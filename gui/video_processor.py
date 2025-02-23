@@ -1,17 +1,49 @@
 """视频处理模块"""
 import cv2
+from core.config_manager import ConfigManager
 
 class VideoProcessor:
     """视频处理类，负责视频帧的读取和显示"""
-    def __init__(self, hardware, window_scale=0.7, playback_speed=1.0):
+    def __init__(self, hardware, window_scale=None, playback_speed=None):
         self.hardware = hardware
-        self.window_scale = window_scale
-        self.playback_speed = max(0.1, min(playback_speed, 16.0))
+        self.config_manager = ConfigManager()
+        
+        # 初始化内部属性
         self._cap = None
         self.total_frames = 0
         self.fps = 0
         self.frame_width = 0
         self.frame_height = 0
+        
+        # 设置缩放和播放速度（会触发属性装饰器）
+        self.window_scale = window_scale if window_scale is not None else self.config_manager.get_window_scale()
+        self.playback_speed = playback_speed if playback_speed is not None else self.config_manager.get_playback_speed()
+
+    @property
+    def playback_speed(self):
+        """获取播放速度"""
+        return self._playback_speed
+
+    @playback_speed.setter
+    def playback_speed(self, value):
+        """设置播放速度"""
+        self._playback_speed = max(0.1, min(value, 16.0))
+        # 保存到配置
+        self.config_manager.config['playback_speed'] = self._playback_speed
+        self.config_manager.save_config()
+
+    @property
+    def window_scale(self):
+        """获取窗口缩放比例"""
+        return self._window_scale
+
+    @window_scale.setter
+    def window_scale(self, value):
+        """设置窗口缩放比例"""
+        self._window_scale = max(0.1, min(value, 1.0))
+        # 保存到配置
+        self.config_manager.config['window_scale'] = self._window_scale
+        self.config_manager.save_config()
 
     def open_video(self, video_path):
         """打开视频文件"""
@@ -49,8 +81,10 @@ class VideoProcessor:
         )
         cv2.imshow(title, display_frame)
 
-        # 根据播放速度计算等待时间
-        wait_time = max(1, int(1000 / (self.fps * self.playback_speed)))
+        # 根据播放速度计算等待时间（毫秒）
+        wait_time = int(1000 / (self.fps * self.playback_speed))
+        if wait_time <= 0:  # 对于高速播放，确保至少处理键盘事件
+            wait_time = 1
         key = cv2.waitKey(wait_time) & 0xFF
         return key == ord('q')
 

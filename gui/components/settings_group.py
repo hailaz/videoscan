@@ -2,6 +2,7 @@
 from PyQt5.QtWidgets import (QGroupBox, QGridLayout, QHBoxLayout, QLabel, 
                            QSpinBox, QDoubleSpinBox, QCheckBox, QWidget)
 from PyQt5.QtCore import Qt
+from core.config_manager import ConfigManager
 
 class WheelSpinBox(QSpinBox):
     """支持滚轮操作的整数输入框"""
@@ -23,6 +24,8 @@ class SettingsGroup(QGroupBox):
     def __init__(self, hardware, parent=None):
         super().__init__("检测设置", parent)
         self.hardware = hardware
+        self.parent = parent
+        self.config_manager = ConfigManager()
         self._init_ui()
 
     def _init_ui(self):
@@ -38,11 +41,20 @@ class SettingsGroup(QGroupBox):
             main_layout, "最小区域", 100, 10000, 1000)
             
         self.scale_spin = self._create_double_spin_box(
-            main_layout, "预览比例", 0.1, 1.0, 0.4, 0.1)
+            main_layout, "预览比例", 0.1, 1.0, 
+            self.config_manager.get_window_scale(), 0.1)  # 使用配置中的值
             
         self.speed_spin = self._create_double_spin_box(
-            main_layout, "处理速度", 0.1, 16.0, 2.0, 0.1)
-        
+            main_layout, "处理速度", 0.1, 16.0, 
+            self.config_manager.get_playback_speed(), 0.1)  # 使用配置中的值
+
+        # 连接信号到视频处理器
+        if hasattr(self.parent, 'video_processor'):
+            self.scale_spin.valueChanged.connect(
+                lambda v: setattr(self.parent.video_processor, 'window_scale', v))
+            self.speed_spin.valueChanged.connect(
+                lambda v: setattr(self.parent.video_processor, 'playback_speed', v))
+            
         # GPU选项
         self.use_gpu = QCheckBox("使用GPU加速")
         self.use_gpu.setChecked(self.hardware.has_gpu)
@@ -51,7 +63,6 @@ class SettingsGroup(QGroupBox):
 
         # 添加弹性空间
         main_layout.addStretch()
-        
         self.setLayout(main_layout)
 
     def _create_spin_box(self, layout, label, min_val, max_val, default):

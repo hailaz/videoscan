@@ -8,8 +8,9 @@ from gui.detection_thread import DetectionThread
 from gui.components.file_group import FileGroup
 from gui.components.settings_group import SettingsGroup
 from gui.components.operations_group import OperationsGroup
-from gui.components.log_group import LogGroup
+from gui.components.log_group import LogGroup  # 添加日志组件导入
 from gui.components.styles import get_main_styles
+from gui.video_processor import VideoProcessor
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -20,6 +21,7 @@ class MainWindow(QMainWindow):
         # 初始化核心组件
         self.hardware = HardwareAccelerator()
         self.splitter = VideoSplitter()
+        self.video_processor = VideoProcessor(self.hardware)  # 创建视频处理器
         self.detection_thread = None
         self.segments = []
         
@@ -35,15 +37,17 @@ class MainWindow(QMainWindow):
         layout.setContentsMargins(20, 20, 20, 20)
 
         # 创建并添加UI组件
-        self.file_group = FileGroup(self)
+        self.log_group = LogGroup(self)
         self.settings_group = SettingsGroup(self.hardware, self)
         self.operations_group = OperationsGroup(self)
-        self.log_group = LogGroup(self)
-
+        self.file_group = FileGroup(self)
+        
+        
         layout.addWidget(self.file_group)
         layout.addWidget(self.settings_group)
         layout.addWidget(self.operations_group)
         layout.addWidget(self.log_group)
+        
 
     def _apply_styles(self):
         """应用UI样式"""
@@ -70,14 +74,14 @@ class MainWindow(QMainWindow):
         # 获取设置参数
         settings = self.settings_group.get_settings()
 
-        # 创建并启动检测线程
+        # 使用已有的视频处理器创建检测线程
         self.detection_thread = DetectionThread(
             self.file_group.get_file_path(),
             self.hardware,
-            settings['scale'],
+            self.video_processor.window_scale,  # 使用当前视频处理器的设置
             settings['threshold'],
             settings['min_area'],
-            settings['speed']
+            self.video_processor.playback_speed  # 使用当前视频处理器的设置
         )
         self.detection_thread.progress.connect(self.update_detection_progress)
         self.detection_thread.finished.connect(self.detection_finished)
