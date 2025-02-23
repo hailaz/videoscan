@@ -1,64 +1,22 @@
+"""视频分割模块"""
 import os
 import cv2
 import subprocess
 from pathlib import Path
+from .segment_manager import SegmentManager
 
 class VideoSplitter:
     def __init__(self):
         self.progress_callback = None
-        self.motion_segments = []
+        self.segment_manager = SegmentManager()
 
     def set_progress_callback(self, callback):
         """设置进度回调函数"""
         self.progress_callback = callback
 
-    def merge_segments(self, segments, buffer_time=3):
-        """合并重叠的视频片段"""
-        if not segments:
-            return []
-            
-        # 按开始时间排序
-        segments.sort(key=lambda x: x['start'])
-        merged = []
-        current = segments[0]
-        
-        for next_seg in segments[1:]:
-            current_end = current['end'] + buffer_time
-            next_start = next_seg['start'] - buffer_time
-            
-            if next_start <= current_end:
-                current['end'] = max(current['end'], next_seg['end'])
-            else:
-                current['start'] = max(0, current['start'] - buffer_time)
-                current['end'] = current['end'] + buffer_time
-                merged.append(current)
-                current = next_seg
-        
-        current['start'] = max(0, current['start'] - buffer_time)
-        current['end'] = current['end'] + buffer_time
-        merged.append(current)
-        
-        return merged
-
-    def format_time(self, seconds):
-        """将秒数转换为可读的时间格式"""
-        m, s = divmod(seconds, 60)
-        h, m = divmod(m, 60)
-        return f"{int(h):02d}:{int(m):02d}:{s:05.2f}"
-
     def get_segment_info(self, segments):
         """获取片段信息统计"""
-        total_duration = sum(seg['end'] - seg['start'] for seg in segments)
-        info = []
-        for i, segment in enumerate(segments):
-            duration = segment['end'] - segment['start']
-            info.append({
-                'index': i + 1,
-                'start': self.format_time(segment['start']),
-                'end': self.format_time(segment['end']),
-                'duration': self.format_time(duration)
-            })
-        return info, self.format_time(total_duration)
+        return self.segment_manager.get_segment_info(segments)
 
     def split_video(self, video_path, segments, output_dir="切割视频", ffmpeg_path=None):
         """按时间切割视频"""
@@ -68,6 +26,9 @@ class VideoSplitter:
             
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
+
+        # 预处理片段，合并重叠部分
+        segments = self.segment_manager.merge_segments(segments)
 
         base_filename = os.path.splitext(os.path.basename(video_path))[0]
         output_files = []
@@ -81,10 +42,10 @@ class VideoSplitter:
 
                 start_time = segment['start']
                 end_time = segment['end']
-                start_str = self.format_time(start_time).replace(":", "_")
-                end_str = self.format_time(end_time).replace(":", "_")
+                start_str = self.segment_manager.format_time(start_time).replace(":", "_")
+                end_str = self.segment_manager.format_time(end_time).replace(":", "_")
                 duration = end_time - start_time
-                
+
                 output_filename = f"{base_filename}_片段{i+1}_{start_str}到{end_str}.mp4"
                 output_path = os.path.join(output_dir, output_filename)
                 output_files.append(output_path)
