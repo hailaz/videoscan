@@ -8,7 +8,8 @@ class DetectionThread(QThread):
     finished = pyqtSignal(list)
     error = pyqtSignal(str)
 
-    def __init__(self, video_path, hardware, window_scale=0.7, threshold=30, min_area=1000, playback_speed=1.0):
+    def __init__(self, video_path, hardware, window_scale=0.7, threshold=30, 
+                 min_area=1000, playback_speed=1.0):
         super().__init__()
         self.video_path = video_path
         self.hardware = hardware
@@ -54,7 +55,7 @@ class DetectionThread(QThread):
                     break
 
                 current_time = (frame_count / fps) * self.playback_speed
-                self.progress.emit((frame_count / total_frames) * 100)
+                self.progress.emit(round((frame_count / total_frames) * 100, 2))
 
                 # 检测动作
                 motion_detected, display_frame = self.detector.process_frame(
@@ -89,14 +90,22 @@ class DetectionThread(QThread):
 
                 frame_count += 1
                 wait_time = max(1, int(1000 / (fps * self.playback_speed)))
-                if cv2.waitKey(wait_time) & 0xFF == ord('q'):
+                key = cv2.waitKey(wait_time) & 0xFF
+                if key == ord('q'):
+                    self.stop()
+                    # 如果有未完成的片段，添加到segments中
+                    if is_motion and segment_start is not None:
+                        segments.append({
+                            'start': segment_start,
+                            'end': current_time
+                        })
                     break
 
             cap.release()
             cv2.destroyAllWindows()
             
-            if self._is_running:
-                self.finished.emit(segments)
+            # 无论是正常完成还是被停止，都发出完成信号
+            self.finished.emit(segments)
                 
         except Exception as e:
             if self._is_running:

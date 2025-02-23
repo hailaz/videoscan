@@ -75,7 +75,7 @@ class VideoSplitter:
 
         for i, segment in enumerate(segments):
             try:
-                current_progress = ((i + 1) / total_segments) * 100
+                current_progress = round(((i + 1) / total_segments) * 100, 2)
                 if self.progress_callback:
                     self.progress_callback(current_progress)
 

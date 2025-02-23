@@ -14,7 +14,7 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle('智能视频切割工具')
-        self.setGeometry(100, 100, 1000, 700)
+        self.setGeometry(100, 100, 1000, 800)  # 略微增加窗口高度
         self.hardware = HardwareAccelerator()
         self.splitter = VideoSplitter()
         self.detection_thread = None
@@ -32,8 +32,8 @@ class MainWindow(QMainWindow):
         # 添加各个组件
         layout.addWidget(self._create_file_group())
         layout.addWidget(self._create_settings_group())
-        layout.addWidget(self._create_actions_group())
-        layout.addWidget(self._create_status_group())
+        layout.addWidget(self._create_operations_group())  # 新的组合区域
+        layout.addWidget(self._create_log_group())  # 分离的日志区域
 
     def _create_file_group(self):
         group = QGroupBox("视频文件")
@@ -80,60 +80,66 @@ class MainWindow(QMainWindow):
         group.setLayout(layout)
         return group
 
-    def _create_actions_group(self):
-        group = QGroupBox("操作")
-        layout = QHBoxLayout()
-        layout.setSpacing(20)
+    def _create_operations_group(self):
+        group = QGroupBox("操作与进度")
+        main_layout = QVBoxLayout()
+        
+        # 按钮布局
+        button_layout = QHBoxLayout()
+        button_layout.setSpacing(20)
         
         self.detect_btn = QPushButton('开始检测')
         self.detect_btn.setIcon(self.style().standardIcon(QApplication.style().SP_MediaPlay))
         self.detect_btn.clicked.connect(self.start_detection)
-        layout.addWidget(self.detect_btn)
+        button_layout.addWidget(self.detect_btn)
 
         self.stop_btn = QPushButton('停止')
         self.stop_btn.setIcon(self.style().standardIcon(QApplication.style().SP_MediaStop))
         self.stop_btn.clicked.connect(self.stop_detection)
         self.stop_btn.setEnabled(False)
-        layout.addWidget(self.stop_btn)
+        button_layout.addWidget(self.stop_btn)
 
         self.split_btn = QPushButton('切割视频')
         self.split_btn.setIcon(self.style().standardIcon(QApplication.style().SP_MediaSeekForward))
         self.split_btn.clicked.connect(self.split_video)
         self.split_btn.setEnabled(False)
-        layout.addWidget(self.split_btn)
+        button_layout.addWidget(self.split_btn)
         
-        group.setLayout(layout)
-        return group
+        main_layout.addLayout(button_layout)
 
-    def _create_status_group(self):
-        group = QGroupBox("处理状态")
-        layout = QVBoxLayout()
+        # 进度条布局
+        progress_layout = QVBoxLayout()
+        progress_layout.setSpacing(10)
         
         # 检测进度
-        layout.addWidget(QLabel("检测进度:"))
+        detection_progress_layout = QHBoxLayout()
+        detection_progress_layout.addWidget(QLabel("检测进度:"))
         self.progress_bar = QProgressBar()
         self.progress_bar.setTextVisible(True)
         self.progress_bar.setAlignment(Qt.AlignCenter)
-        layout.addWidget(self.progress_bar)
+        detection_progress_layout.addWidget(self.progress_bar)
+        progress_layout.addLayout(detection_progress_layout)
 
         # 切割进度
-        layout.addWidget(QLabel("切割进度:"))
+        split_progress_layout = QHBoxLayout()
+        split_progress_layout.addWidget(QLabel("切割进度:"))
         self.split_progress_bar = QProgressBar()
         self.split_progress_bar.setTextVisible(True)
         self.split_progress_bar.setAlignment(Qt.AlignCenter)
-        layout.addWidget(self.split_progress_bar)
+        split_progress_layout.addWidget(self.split_progress_bar)
+        progress_layout.addLayout(split_progress_layout)
 
-        # 分隔线
-        line = QFrame()
-        line.setFrameShape(QFrame.HLine)
-        line.setFrameShadow(QFrame.Sunken)
-        layout.addWidget(line)
+        main_layout.addLayout(progress_layout)
+        group.setLayout(main_layout)
+        return group
 
-        # 日志区域
-        layout.addWidget(QLabel("处理日志:"))
+    def _create_log_group(self):
+        group = QGroupBox("处理日志")
+        layout = QVBoxLayout()
+        
         self.log_text = QTextEdit()
         self.log_text.setReadOnly(True)
-        self.log_text.setMaximumHeight(150)
+        self.log_text.setMinimumHeight(250)  # 增加日志区域的最小高度
         layout.addWidget(self.log_text)
         
         group.setLayout(layout)
