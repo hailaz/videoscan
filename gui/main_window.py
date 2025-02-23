@@ -1,7 +1,7 @@
 """主窗口实现"""
 import sys
 import os
-from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout, QMessageBox, QFileDialog
+from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout, QMessageBox, QFileDialog, QStyle
 from core.hardware import HardwareAccelerator
 from core.splitter import VideoSplitter
 from gui.detection_thread import DetectionThread
@@ -9,7 +9,7 @@ from gui.components.file_group import FileGroup
 from gui.components.settings_group import SettingsGroup
 from gui.components.operations_group import OperationsGroup
 from gui.components.log_group import LogGroup
-from gui.components.styles import get_main_styles, get_stop_button_style
+from gui.components.styles import get_main_styles
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -48,7 +48,6 @@ class MainWindow(QMainWindow):
     def _apply_styles(self):
         """应用UI样式"""
         self.setStyleSheet(get_main_styles())
-        self.operations_group.stop_btn.setStyleSheet(get_stop_button_style())
 
     def log_message(self, message):
         """添加日志消息"""
@@ -58,12 +57,12 @@ class MainWindow(QMainWindow):
         """开始检测"""
         if not self.file_group.get_file_path():
             QMessageBox.warning(self, '警告', '请先选择视频文件！')
+            self.operations_group.detect_btn.setText('开始检测')
+            self.operations_group.detect_btn.setIcon(self.style().standardIcon(QStyle.SP_MediaPlay))
+            self.operations_group.is_detecting = False
             return
 
         # 更新UI状态
-        self.operations_group.detect_btn.setEnabled(False)
-        self.operations_group.stop_btn.setEnabled(True)
-        self.operations_group.split_btn.setEnabled(False)
         self.operations_group.progress_bar.setValue(0)
         self.operations_group.split_progress_bar.setValue(0)
         self.log_message("开始检测视频中的动作...")
@@ -89,11 +88,9 @@ class MainWindow(QMainWindow):
         """停止检测"""
         if self.detection_thread and self.detection_thread.isRunning():
             self.log_message("正在停止检测...")
-            self.operations_group.stop_btn.setEnabled(False)
             self.detection_thread.stop()
             self.detection_thread.quit()
             self.detection_thread.wait()
-            self.operations_group.detect_btn.setEnabled(True)
             self.log_message("检测已停止")
 
     def update_detection_progress(self, value):
@@ -114,16 +111,21 @@ class MainWindow(QMainWindow):
                 f'(时长: {info["duration"]})'
             )
         
-        self.operations_group.stop_btn.setEnabled(False)
-        self.operations_group.detect_btn.setEnabled(True)
+        # 重置检测按钮状态
+        self.operations_group.detect_btn.setText('开始检测')
+        self.operations_group.detect_btn.setIcon(self.style().standardIcon(QStyle.SP_MediaPlay))
+        self.operations_group.is_detecting = False
         self.operations_group.split_btn.setEnabled(True)
 
     def detection_error(self, error_msg):
         """处理检测错误"""
         QMessageBox.critical(self, '错误', f'检测过程出错：{error_msg}')
         self.log_message(f'错误: {error_msg}')
-        self.operations_group.detect_btn.setEnabled(True)
-        self.operations_group.stop_btn.setEnabled(False)
+        
+        # 重置检测按钮状态
+        self.operations_group.detect_btn.setText('开始检测')
+        self.operations_group.detect_btn.setIcon(self.style().standardIcon(QStyle.SP_MediaPlay))
+        self.operations_group.is_detecting = False
         self.operations_group.progress_bar.setValue(0)
 
     def split_video(self):
