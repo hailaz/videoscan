@@ -13,20 +13,7 @@ class RegionManager:
 
     def adjust_exclude_regions(self, frame_width, frame_height):
         """调整排除区域"""
-        # 自动计算视频边缘的排除区域
-        edge_width = int(frame_width * 0.02)  # 2%的边缘区域
-        edge_height = int(frame_height * 0.02)
-        
-        self.exclude_regions = [
-            # 左边缘
-            {'x': 0, 'y': 0, 'width': edge_width, 'height': frame_height},
-            # 右边缘
-            {'x': frame_width - edge_width, 'y': 0, 'width': edge_width, 'height': frame_height},
-            # 上边缘
-            {'x': 0, 'y': 0, 'width': frame_width, 'height': edge_height},
-            # 下边缘
-            {'x': 0, 'y': frame_height - edge_height, 'width': frame_width, 'height': edge_height}
-        ]
+        self.exclude_regions = []
         
         # 添加默认排除区域
         for region in self.default_exclude_regions:
@@ -39,7 +26,6 @@ class RegionManager:
 
     def apply_regions(self, frame):
         """在帧上应用排除区域"""
-        # 应用自动计算的排除区域
         for region in self.exclude_regions:
             x, y = region['x'], region['y']
             w, h = region['width'], region['height']
