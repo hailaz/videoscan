@@ -1,6 +1,23 @@
 """设置组件"""
-from PyQt5.QtWidgets import (QGroupBox, QHBoxLayout, QVBoxLayout, 
-                           QLabel, QSpinBox, QDoubleSpinBox, QCheckBox)
+from PyQt5.QtWidgets import (QGroupBox, QGridLayout, QHBoxLayout, QLabel, 
+                           QSpinBox, QDoubleSpinBox, QCheckBox, QWidget)
+from PyQt5.QtCore import Qt
+
+class WheelSpinBox(QSpinBox):
+    """支持滚轮操作的整数输入框"""
+    def wheelEvent(self, event):
+        if self.hasFocus():
+            super().wheelEvent(event)
+        else:
+            event.ignore()
+
+class WheelDoubleSpinBox(QDoubleSpinBox):
+    """支持滚轮操作的浮点数输入框"""
+    def wheelEvent(self, event):
+        if self.hasFocus():
+            super().wheelEvent(event)
+        else:
+            event.ignore()
 
 class SettingsGroup(QGroupBox):
     def __init__(self, hardware, parent=None):
@@ -9,52 +26,73 @@ class SettingsGroup(QGroupBox):
         self._init_ui()
 
     def _init_ui(self):
-        layout = QHBoxLayout()
-        layout.setSpacing(30)
-
-        # 左侧设置
-        left_layout = QVBoxLayout()
+        main_layout = QHBoxLayout()
+        main_layout.setSpacing(12)  # 调整控件之间的间距
+        main_layout.setContentsMargins(10, 10, 10, 10)  # 设置边距
+        
+        # 创建所有参数控件
         self.threshold_spin = self._create_spin_box(
-            left_layout, "检测阈值:", 1, 100, 25)
+            main_layout, "检测阈值", 1, 100, 25)
+        
         self.min_area_spin = self._create_spin_box(
-            left_layout, "最小检测区域:", 100, 10000, 1000)
-        layout.addLayout(left_layout)
-
-        # 中间设置
-        middle_layout = QVBoxLayout()
+            main_layout, "最小区域", 100, 10000, 1000)
+            
         self.scale_spin = self._create_double_spin_box(
-            middle_layout, "预览窗口比例:", 0.1, 1.0, 0.4, 0.1)
+            main_layout, "预览比例", 0.1, 1.0, 0.4, 0.1)
+            
         self.speed_spin = self._create_double_spin_box(
-            middle_layout, "处理速度:", 0.1, 16.0, 2.0, 0.1)
-        layout.addLayout(middle_layout)
-
-        # 右侧设置
-        right_layout = QVBoxLayout()
+            main_layout, "处理速度", 0.1, 16.0, 2.0, 0.1)
+        
+        # GPU选项
         self.use_gpu = QCheckBox("使用GPU加速")
         self.use_gpu.setChecked(self.hardware.has_gpu)
         self.use_gpu.setEnabled(self.hardware.has_gpu)
-        right_layout.addWidget(self.use_gpu)
-        layout.addLayout(right_layout)
+        main_layout.addWidget(self.use_gpu)
 
-        self.setLayout(layout)
+        # 添加弹性空间
+        main_layout.addStretch()
+        
+        self.setLayout(main_layout)
 
     def _create_spin_box(self, layout, label, min_val, max_val, default):
         """创建整数输入框"""
-        layout.addWidget(QLabel(label))
-        spin = QSpinBox()
+        container = QWidget()
+        container_layout = QHBoxLayout()
+        container_layout.setContentsMargins(0, 0, 0, 0)
+        container_layout.setSpacing(1)  # 减小标签和数值之间的间距
+        
+        label_widget = QLabel(f"{label}:")  # 添加冒号
+        label_widget.setFixedWidth(70)  # 增加标签宽度确保文本完整显示
+        spin = WheelSpinBox()
         spin.setRange(min_val, max_val)
         spin.setValue(default)
-        layout.addWidget(spin)
+        spin.setFixedWidth(50)  # 减小数值输入框宽度
+        
+        container_layout.addWidget(label_widget)
+        container_layout.addWidget(spin)
+        container.setLayout(container_layout)
+        layout.addWidget(container)
         return spin
 
     def _create_double_spin_box(self, layout, label, min_val, max_val, default, step):
         """创建浮点数输入框"""
-        layout.addWidget(QLabel(label))
-        spin = QDoubleSpinBox()
+        container = QWidget()
+        container_layout = QHBoxLayout()
+        container_layout.setContentsMargins(0, 0, 0, 0)
+        container_layout.setSpacing(1)  # 减小标签和数值之间的间距
+        
+        label_widget = QLabel(f"{label}:")  # 添加冒号
+        label_widget.setFixedWidth(70)  # 增加标签宽度确保文本完整显示
+        spin = WheelDoubleSpinBox()
         spin.setRange(min_val, max_val)
         spin.setValue(default)
         spin.setSingleStep(step)
-        layout.addWidget(spin)
+        spin.setFixedWidth(50)  # 减小数值输入框宽度
+        
+        container_layout.addWidget(label_widget)
+        container_layout.addWidget(spin)
+        container.setLayout(container_layout)
+        layout.addWidget(container)
         return spin
 
     def get_settings(self):
