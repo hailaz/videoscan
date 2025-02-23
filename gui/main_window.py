@@ -25,6 +25,9 @@ class MainWindow(QMainWindow):
         self.detection_thread = None
         self.segments = []
         
+        # 设置日志回调
+        self.splitter.set_log_callback(self.log_message)
+        
         self._initialize_ui()
         self._apply_styles()
 

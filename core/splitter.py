@@ -9,10 +9,16 @@ class VideoSplitter:
     def __init__(self):
         self.progress_callback = None
         self.segment_manager = SegmentManager()
+        self.log_callback = None
 
     def set_progress_callback(self, callback):
         """设置进度回调函数"""
         self.progress_callback = callback
+
+    def set_log_callback(self, callback):
+        """设置日志回调函数"""
+        self.log_callback = callback
+        self.segment_manager.set_logger(callback)
 
     def get_segment_info(self, segments):
         """获取片段信息统计"""
@@ -21,7 +27,8 @@ class VideoSplitter:
     def split_video(self, video_path, segments, output_dir="切割视频", ffmpeg_path=None):
         """按时间切割视频"""
         if not segments:
-            print("没有检测到需要切割的片段！")
+            if self.log_callback:
+                self.log_callback("没有检测到需要切割的片段！")
             return []
             
         if not os.path.exists(output_dir):
