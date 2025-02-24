@@ -27,7 +27,7 @@ class VideoProcessor:
     @playback_speed.setter
     def playback_speed(self, value):
         """设置播放速度"""
-        self._playback_speed = max(0.1, min(value, 16.0))
+        self._playback_speed = round(max(0.1, min(value, 16.0)), 1)  # 限制为1位小数
         # 保存到配置
         self.config_manager.config['playback_speed'] = self._playback_speed
         self.config_manager.save_config()

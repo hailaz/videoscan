@@ -47,6 +47,7 @@ class SettingsGroup(QGroupBox):
         self.speed_spin = self._create_double_spin_box(
             main_layout, "处理速度", 0.1, 16.0, 
             self.config_manager.get_playback_speed(), 0.1)
+        self.speed_spin.setDecimals(1)  # 设置小数位数为1位
 
         # GPU选项
         self.use_gpu = QCheckBox("使用GPU加速")
