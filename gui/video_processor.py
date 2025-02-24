@@ -1,5 +1,6 @@
 """视频处理模块"""
 import cv2
+import numpy as np
 from core.config_manager import ConfigManager
 
 class VideoProcessor:
@@ -45,6 +46,22 @@ class VideoProcessor:
         self.config_manager.config['window_scale'] = self._window_scale
         self.config_manager.save_config()
 
+    def get_current_frame_number(self):
+        """获取当前帧号"""
+        if self._cap is None:
+            return 0
+        return int(self._cap.get(cv2.CAP_PROP_POS_FRAMES))
+
+    def format_time(self, frame_number):
+        """将帧号转换为时间格式 HH:MM:SS"""
+        if self.fps == 0:
+            return "00:00:00"
+        total_seconds = frame_number / self.fps
+        hours = int(total_seconds // 3600)
+        minutes = int((total_seconds % 3600) // 60)
+        seconds = int(total_seconds % 60)
+        return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+
     def open_video(self, video_path):
         """打开视频文件"""
         self._cap = self.hardware.get_video_capture(video_path)
@@ -73,6 +90,41 @@ class VideoProcessor:
 
     def display_frame(self, frame, title="Motion Detection"):
         """显示处理后的帧"""
+        # 获取当前帧信息
+        current_frame = self.get_current_frame_number()
+        current_time = self.format_time(current_frame)
+        total_time = self.format_time(self.total_frames)
+        progress = (current_frame / self.total_frames * 100) if self.total_frames > 0 else 0
+
+        # 添加信息文本
+        info_text = f"{current_time}/{total_time}({progress:.1f}%)-{self.playback_speed}x"
+        
+        # 增大字体
+        font = cv2.FONT_HERSHEY_SIMPLEX
+        font_scale = 1.2  # 增大字体大小
+        thickness = 2     # 增加字体粗细
+        (text_width, text_height), baseline = cv2.getTextSize(info_text, font, font_scale, thickness)
+        
+        # 计算右上角位置，留出更大的边距
+        x = frame.shape[1] - text_width - 20  # 增加右边距
+        y = text_height + 20                  # 增加上边距
+
+        # 创建文本背景
+        padding = 8  # 增加内边距
+        overlay = frame.copy()
+        cv2.rectangle(overlay, 
+                     (x - padding, y - text_height - padding),
+                     (x + text_width + padding, y + padding),
+                     (0, 0, 0), -1)
+        
+        # 添加半透明背景
+        alpha = 1
+        frame = cv2.addWeighted(overlay, alpha, frame, 1 - alpha, 0)
+
+        # 添加文本（白色，增加描边使文字更清晰）
+        cv2.putText(frame, info_text, (x, y), font, font_scale, (0, 0, 0), thickness + 2)  # 黑色描边
+        cv2.putText(frame, info_text, (x, y), font, font_scale, (255, 255, 255), thickness) # 白色文字
+
         # 缩放显示帧
         display_frame = cv2.resize(
             frame, None,
