@@ -31,7 +31,8 @@ class ConfigManager:
             'last_video_path': '',
             'window_scale': 0.4,  # 调整默认缩放比例为 0.4
             'playback_speed': 1.0,
-            'output_directory': ''  # 添加输出目录配置项
+            'output_directory': '',  # 添加输出目录配置项
+            'auto_split': False  # 添加自动切割配置项
         }
 
     def save_config(self):
@@ -66,4 +67,13 @@ class ConfigManager:
     def set_output_directory(self, path):
         """设置输出目录"""
         self.config['output_directory'] = path
+        self.save_config()
+
+    def get_auto_split(self):
+        """获取是否自动切割视频"""
+        return self.config.get('auto_split', False)
+
+    def set_auto_split(self, auto_split):
+        """设置是否自动切割视频"""
+        self.config['auto_split'] = auto_split
         self.save_config()

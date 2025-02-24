@@ -81,14 +81,16 @@ class MainWindow(QMainWindow):
         self.detection_thread = DetectionThread(
             self.file_group.get_file_path(),
             self.hardware,
-            self.video_processor.window_scale,  # 使用当前视频处理器的设置
+            self.video_processor.window_scale,
             settings['threshold'],
             settings['min_area'],
-            self.video_processor.playback_speed  # 使用当前视频处理器的设置
+            self.video_processor.playback_speed,
+            self
         )
         self.detection_thread.progress.connect(self.update_detection_progress)
         self.detection_thread.finished.connect(self.detection_finished)
         self.detection_thread.error.connect(self.detection_error)
+        self.detection_thread.auto_split_requested.connect(lambda: self.split_video(auto=True))  # 使用 lambda 传递 auto 参数
         self.detection_thread.start()
 
     def stop_detection(self):
@@ -135,8 +137,12 @@ class MainWindow(QMainWindow):
         self.operations_group.is_detecting = False
         self.operations_group.progress_bar.setValue(0)
 
-    def split_video(self):
-        """切割视频"""
+    def split_video(self, auto=False):
+        """切割视频
+        
+        Args:
+            auto (bool): 是否是自动切割模式，如果是则使用配置的输出目录，不弹出选择对话框
+        """
         if not self.segments:
             QMessageBox.warning(self, '警告', '请先进行动作检测！')
             return
@@ -144,8 +150,8 @@ class MainWindow(QMainWindow):
         # 获取配置的输出目录
         output_dir = self.file_group.get_output_directory()
         
-        # 如果没有配置输出目录，弹出选择对话框
-        if not output_dir:
+        # 如果不是自动切割模式，且没有配置输出目录，弹出选择对话框
+        if not auto and not output_dir:
             output_dir = QFileDialog.getExistingDirectory(self, '选择保存目录')
             if output_dir:
                 # 保存选择的目录到配置
@@ -166,7 +172,8 @@ class MainWindow(QMainWindow):
                 )
                 
                 if output_files:
-                    QMessageBox.information(self, '成功', '视频切割完成！')
+                    if not auto:  # 只在手动切割时显示完成提示
+                        QMessageBox.information(self, '成功', '视频切割完成！')
                     self.log_message(f"视频切割完成！保存在: {output_dir}")
                 else:
                     raise Exception("没有生成任何输出文件")
@@ -175,6 +182,8 @@ class MainWindow(QMainWindow):
                 error_msg = f'视频切割失败：{str(e)}'
                 QMessageBox.critical(self, '错误', error_msg)
                 self.log_message(f"错误: {error_msg}")
+        elif auto:
+            self.log_message("自动切割失败：未配置输出目录")
 
     def update_split_progress(self, value):
         """更新切割进度"""

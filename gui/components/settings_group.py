@@ -55,6 +55,11 @@ class SettingsGroup(QGroupBox):
         self.use_gpu.setEnabled(self.hardware.has_gpu)
         main_layout.addWidget(self.use_gpu)
 
+        # 自动切割选项
+        self.auto_split = QCheckBox("自动切割")
+        self.auto_split.setChecked(self.config_manager.get_auto_split())
+        main_layout.addWidget(self.auto_split)
+        
         main_layout.addStretch()
         self.setLayout(main_layout)
         
@@ -64,6 +69,8 @@ class SettingsGroup(QGroupBox):
                 lambda v: setattr(self.parent.video_processor, 'window_scale', v))
             self.speed_spin.valueChanged.connect(
                 lambda v: setattr(self.parent.video_processor, 'playback_speed', v))
+            self.auto_split.stateChanged.connect(
+                lambda state: self.config_manager.set_auto_split(bool(state)))
 
     def _create_spin_box(self, layout, label, min_val, max_val, default):
         """创建整数输入框"""
@@ -113,6 +120,7 @@ class SettingsGroup(QGroupBox):
             'min_area': self.min_area_spin.value(),
             'scale': self.scale_spin.value(),
             'speed': self.speed_spin.value(),
-            'use_gpu': self.use_gpu.isChecked()
+            'use_gpu': self.use_gpu.isChecked(),
+            'auto_split': self.auto_split.isChecked()
         }
         return settings

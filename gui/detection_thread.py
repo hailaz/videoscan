@@ -1,6 +1,8 @@
 """视频检测线程模块"""
 from PyQt5.QtCore import QThread, pyqtSignal
 from core.detector import MotionDetector
+from core.splitter import VideoSplitter
+from core.config_manager import ConfigManager
 from .video_processor import VideoProcessor
 import math
 
@@ -8,13 +10,16 @@ class DetectionThread(QThread):
     progress = pyqtSignal(float)
     finished = pyqtSignal(list)
     error = pyqtSignal(str)
+    auto_split_requested = pyqtSignal()  # 添加自动切割请求信号
 
     def __init__(self, video_path, hardware, window_scale=0.7, threshold=30, 
-                 min_area=1000, playback_speed=1.0):
-        super().__init__()
+                 min_area=1000, playback_speed=1.0, parent=None):
+        super().__init__(parent)
         self.video_path = video_path
         self.video_processor = VideoProcessor(hardware, window_scale, playback_speed)
         self.detector = MotionDetector(threshold, min_area)
+        self.config_manager = ConfigManager()
+        self.parent = parent
         self._is_running = True
 
     def stop(self):
@@ -114,6 +119,10 @@ class DetectionThread(QThread):
             
             # 发出完成信号
             self.finished.emit(segments)
+            
+            # 如果开启了自动切割，发送自动切割请求信号
+            if self.config_manager.get_auto_split() and segments:
+                self.auto_split_requested.emit()
                 
         except Exception as e:
             if self._is_running:
