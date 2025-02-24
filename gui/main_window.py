@@ -141,7 +141,17 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(self, '警告', '请先进行动作检测！')
             return
 
-        output_dir = QFileDialog.getExistingDirectory(self, '选择保存目录')
+        # 获取配置的输出目录
+        output_dir = self.file_group.get_output_directory()
+        
+        # 如果没有配置输出目录，弹出选择对话框
+        if not output_dir:
+            output_dir = QFileDialog.getExistingDirectory(self, '选择保存目录')
+            if output_dir:
+                # 保存选择的目录到配置
+                self.file_group.output_dir_edit.setText(output_dir)
+                self.file_group.config_manager.set_output_directory(output_dir)
+        
         if output_dir:
             try:
                 self.log_message("开始切割视频...")

@@ -30,10 +30,10 @@ class SettingsGroup(QGroupBox):
 
     def _init_ui(self):
         main_layout = QHBoxLayout()
-        main_layout.setSpacing(12)  # 调整控件之间的间距
-        main_layout.setContentsMargins(10, 10, 10, 10)  # 设置边距
+        main_layout.setSpacing(12)
+        main_layout.setContentsMargins(10, 10, 10, 10)
         
-        # 创建所有参数控件
+        # 参数控件布局
         self.threshold_spin = self._create_spin_box(
             main_layout, "检测阈值", 1, 100, 25)
         
@@ -42,28 +42,27 @@ class SettingsGroup(QGroupBox):
             
         self.scale_spin = self._create_double_spin_box(
             main_layout, "预览比例", 0.1, 1.0, 
-            self.config_manager.get_window_scale(), 0.1)  # 使用配置中的值
+            self.config_manager.get_window_scale(), 0.1)
             
         self.speed_spin = self._create_double_spin_box(
             main_layout, "处理速度", 0.1, 16.0, 
-            self.config_manager.get_playback_speed(), 0.1)  # 使用配置中的值
+            self.config_manager.get_playback_speed(), 0.1)
 
-        # 连接信号到视频处理器
-        if hasattr(self.parent, 'video_processor'):
-            self.scale_spin.valueChanged.connect(
-                lambda v: setattr(self.parent.video_processor, 'window_scale', v))
-            self.speed_spin.valueChanged.connect(
-                lambda v: setattr(self.parent.video_processor, 'playback_speed', v))
-            
         # GPU选项
         self.use_gpu = QCheckBox("使用GPU加速")
         self.use_gpu.setChecked(self.hardware.has_gpu)
         self.use_gpu.setEnabled(self.hardware.has_gpu)
         main_layout.addWidget(self.use_gpu)
 
-        # 添加弹性空间
         main_layout.addStretch()
         self.setLayout(main_layout)
+        
+        # 连接信号
+        if hasattr(self.parent, 'video_processor'):
+            self.scale_spin.valueChanged.connect(
+                lambda v: setattr(self.parent.video_processor, 'window_scale', v))
+            self.speed_spin.valueChanged.connect(
+                lambda v: setattr(self.parent.video_processor, 'playback_speed', v))
 
     def _create_spin_box(self, layout, label, min_val, max_val, default):
         """创建整数输入框"""
@@ -108,10 +107,11 @@ class SettingsGroup(QGroupBox):
 
     def get_settings(self):
         """获取当前设置值"""
-        return {
+        settings = {
             'threshold': self.threshold_spin.value(),
             'min_area': self.min_area_spin.value(),
             'scale': self.scale_spin.value(),
             'speed': self.speed_spin.value(),
             'use_gpu': self.use_gpu.isChecked()
         }
+        return settings

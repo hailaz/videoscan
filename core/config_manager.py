@@ -30,7 +30,8 @@ class ConfigManager:
         return {
             'last_video_path': '',
             'window_scale': 0.4,  # 调整默认缩放比例为 0.4
-            'playback_speed': 1.0
+            'playback_speed': 1.0,
+            'output_directory': ''  # 添加输出目录配置项
         }
 
     def save_config(self):
@@ -57,3 +58,12 @@ class ConfigManager:
     def get_playback_speed(self):
         """获取播放速度"""
         return self.config.get('playback_speed', 1.0)
+
+    def get_output_directory(self):
+        """获取输出目录"""
+        return self.config.get('output_directory', '')
+
+    def set_output_directory(self, path):
+        """设置输出目录"""
+        self.config['output_directory'] = path
+        self.save_config()
