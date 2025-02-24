@@ -3,22 +3,27 @@ import os
 import cv2
 import subprocess
 from pathlib import Path
+from datetime import datetime
 from .segment_manager import SegmentManager
+from .merger import VideoMerger
 
 class VideoSplitter:
     def __init__(self):
         self.progress_callback = None
         self.segment_manager = SegmentManager()
+        self.merger = VideoMerger()
         self.log_callback = None
 
     def set_progress_callback(self, callback):
         """设置进度回调函数"""
         self.progress_callback = callback
+        self.merger.set_progress_callback(callback)
 
     def set_log_callback(self, callback):
         """设置日志回调函数"""
         self.log_callback = callback
         self.segment_manager.set_logger(callback)
+        self.merger.set_log_callback(callback)
 
     def get_segment_info(self, segments):
         """获取片段信息统计"""
@@ -99,5 +104,33 @@ class VideoSplitter:
 
         if self.progress_callback:
             self.progress_callback(100)
+            
+        # 如果成功切割了视频片段，自动进行合并
+        if output_files:
+            if self.log_callback:
+                self.log_callback("开始合并所有视频片段...")
+            
+            # 生成带时间戳的输出文件名
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            merged_output_path = os.path.join(output_dir, f"{base_filename}_合并_{timestamp}.mp4")
+            
+            # 合并视频
+            result = self.merger.merge_videos(output_files, merged_output_path, ffmpeg_path)
+            
+            # 如果合并成功，删除临时片段文件
+            if result:
+                if self.log_callback:
+                    self.log_callback("正在清理临时文件...")
+                for temp_file in output_files:
+                    try:
+                        os.remove(temp_file)
+                        if self.log_callback:
+                            self.log_callback(f"已删除临时文件: {os.path.basename(temp_file)}")
+                    except Exception as e:
+                        if self.log_callback:
+                            self.log_callback(f"删除临时文件时出错: {str(e)}")
+                
+                # 返回合并后的文件路径
+                return [merged_output_path]
             
         return output_files
