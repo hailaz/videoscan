@@ -1,7 +1,8 @@
 """视频检测线程模块"""
 from PyQt5.QtCore import QThread, pyqtSignal
 from core.detector import MotionDetector
-from gui.video_processor import VideoProcessor
+from .video_processor import VideoProcessor
+import math
 
 class DetectionThread(QThread):
     progress = pyqtSignal(float)
@@ -19,6 +20,20 @@ class DetectionThread(QThread):
     def stop(self):
         """停止检测线程"""
         self._is_running = False
+
+    def _align_time(self, time_value, round_up=False):
+        """对齐时间到整秒
+        
+        Args:
+            time_value (float): 原始时间值（秒）
+            round_up (bool): 是否向上取整，默认False表示向下取整
+        
+        Returns:
+            float: 对齐后的时间值
+        """
+        if round_up:
+            return math.ceil(time_value)
+        return math.floor(time_value)
 
     def run(self):
         """运行检测线程"""
@@ -66,15 +81,18 @@ class DetectionThread(QThread):
                     static_count = 0
                     if not is_motion:
                         is_motion = True
-                        segment_start = current_time
+                        # 动作开始时向下取整到整秒
+                        segment_start = self._align_time(current_time)
                 else:
                     static_count += 1
                     adjusted_threshold = int(30 / self.video_processor.playback_speed)
                     if is_motion and static_count >= adjusted_threshold:
                         is_motion = False
+                        # 动作结束时向上取整到整秒
+                        current_aligned_time = self._align_time(current_time, round_up=True)
                         segments.append({
                             'start': segment_start,
-                            'end': current_time
+                            'end': current_aligned_time
                         })
                         segment_start = None
 
