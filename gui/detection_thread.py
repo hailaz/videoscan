@@ -17,7 +17,8 @@ class DetectionThread(QThread):
         super().__init__(parent)
         self.video_path = video_path
         self.video_processor = VideoProcessor(hardware, window_scale, playback_speed)
-        self.detector = MotionDetector(threshold, min_area)
+        # 设置静止时间阈值为1秒
+        self.detector = MotionDetector(threshold, min_area, static_time_threshold=1.0)
         self.config_manager = ConfigManager()
         self.parent = parent
         self._is_running = True
@@ -44,17 +45,15 @@ class DetectionThread(QThread):
         """运行检测线程"""
         try:
             # 打开视频并初始化
-            first_frame = self.video_processor.open_video(self.video_path)
+            self.video_processor.open_video(self.video_path)
             self.detector.adjust_exclude_regions(
                 self.video_processor.frame_width,
                 self.video_processor.frame_height
             )
+            self.detector.set_fps(self.video_processor.fps)
 
             # 初始化检测状态
             frame_count = 0
-            static_count = 0
-            is_motion = False
-            segment_start = None
             segments = []
 
             while self._is_running:
@@ -62,54 +61,34 @@ class DetectionThread(QThread):
                 ret, frame = self.video_processor.read_frame()
                 if not ret:
                     # 处理最后一个未完成的片段
-                    if is_motion and segment_start is not None:
-                        segments.append({
-                            'start': segment_start,
-                            'end': frame_count / self.video_processor.fps
-                        })
+                    final_segment = self.detector.get_current_segment()
+                    if final_segment:
+                        segments.append(final_segment)
                     break
 
                 # 更新进度
-                current_time = frame_count / self.video_processor.fps
                 self.progress.emit(
                     round((frame_count / self.video_processor.total_frames) * 100, 2)
                 )
 
                 # 检测动作
-                motion_detected, display_frame = self.detector.process_frame(
+                motion_detected, display_frame, segment = self.detector.process_frame(
                     frame,
+                    frame_count,
                     use_gpu=self.video_processor.hardware.has_gpu
                 )
 
-                # 更新动作状态
-                if motion_detected:
-                    static_count = 0
-                    if not is_motion:
-                        is_motion = True
-                        # 动作开始时向下取整到整秒
-                        segment_start = self._align_time(current_time)
-                else:
-                    static_count += 1
-                    adjusted_threshold = int(30 / self.video_processor.playback_speed)
-                    if is_motion and static_count >= adjusted_threshold:
-                        is_motion = False
-                        # 动作结束时向上取整到整秒
-                        current_aligned_time = self._align_time(current_time, round_up=True)
-                        segments.append({
-                            'start': segment_start,
-                            'end': current_aligned_time
-                        })
-                        segment_start = None
+                # 如果产生了新的片段，添加到列表中
+                if segment:
+                    segments.append(segment)
 
                 # 显示处理后的帧
                 if self.video_processor.display_frame(display_frame):
                     self.stop()
                     # 处理未完成的片段
-                    if is_motion and segment_start is not None:
-                        segments.append({
-                            'start': segment_start,
-                            'end': current_time
-                        })
+                    final_segment = self.detector.get_current_segment()
+                    if final_segment:
+                        segments.append(final_segment)
                     break
 
                 frame_count += 1
