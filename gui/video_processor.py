@@ -1,10 +1,13 @@
 """视频处理模块"""
 import cv2
-import numpy as np
+import time
+import subprocess
+from pathlib import Path
 from core.config_manager import ConfigManager
+from gui.display_manager import DisplayManager
 
 class VideoProcessor:
-    """视频处理类，负责视频帧的读取和显示"""
+    """视频处理类，负责视频帧的读取和控制"""
     def __init__(self, hardware, window_scale=None, playback_speed=None):
         self.hardware = hardware
         self.config_manager = ConfigManager()
@@ -16,9 +19,16 @@ class VideoProcessor:
         self.frame_width = 0
         self.frame_height = 0
         
-        # 设置缩放和播放速度（会触发属性装饰器）
+        # 设置缩放和播放速度
         self.window_scale = window_scale if window_scale is not None else self.config_manager.get_window_scale()
         self.playback_speed = playback_speed if playback_speed is not None else self.config_manager.get_playback_speed()
+        
+        # 创建显示管理器
+        self.display_manager = DisplayManager(self.window_scale)
+        
+        # 帧率控制
+        self._frame_interval = 0  # 帧间隔时间（秒）
+        self._last_frame_time = 0  # 上一帧的时间
 
     @property
     def playback_speed(self):
@@ -28,7 +38,8 @@ class VideoProcessor:
     @playback_speed.setter
     def playback_speed(self, value):
         """设置播放速度"""
-        self._playback_speed = round(max(0.1, min(value, 16.0)), 1)  # 限制为1位小数
+        self._playback_speed = round(max(0.1, min(value, 16.0)), 1)
+        self._update_frame_interval()
         # 保存到配置
         self.config_manager.config['playback_speed'] = self._playback_speed
         self.config_manager.save_config()
@@ -42,9 +53,17 @@ class VideoProcessor:
     def window_scale(self, value):
         """设置窗口缩放比例"""
         self._window_scale = max(0.1, min(value, 1.0))
+        if hasattr(self, 'display_manager'):
+            self.display_manager.window_scale = self._window_scale
         # 保存到配置
         self.config_manager.config['window_scale'] = self._window_scale
         self.config_manager.save_config()
+
+    def _update_frame_interval(self):
+        """更新帧间隔时间"""
+        if self.fps > 0:
+            # 根据播放速度调整帧间隔
+            self._frame_interval = 1.0 / (self.fps * self.playback_speed)
 
     def get_current_frame_number(self):
         """获取当前帧号"""
@@ -62,15 +81,40 @@ class VideoProcessor:
         seconds = int(total_seconds % 60)
         return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
 
+    def get_accurate_fps(self, video_path):
+        """使用ffprobe获取准确的视频帧率"""
+        try:
+            ffprobe_path = str(Path(__file__).parent.parent / "bin" / "ffprobe.exe")
+            cmd = [
+                ffprobe_path,
+                "-v", "error",
+                "-select_streams", "v:0",
+                "-show_entries", "stream=r_frame_rate",
+                "-of", "default=noprint_wrappers=1:nokey=1",
+                video_path
+            ]
+            result = subprocess.run(cmd, capture_output=True, text=True)
+            if result.returncode == 0:
+                num, den = map(int, result.stdout.strip().split('/'))
+                return num / den
+            return None
+        except Exception as e:
+            print(f"获取准确帧率失败: {str(e)}")
+            return None
+
     def open_video(self, video_path):
         """打开视频文件"""
         self._cap = self.hardware.get_video_capture(video_path)
         if not self._cap.isOpened():
             raise Exception("无法打开视频文件")
 
-        # 获取视频信息
+        # 获取视频信息，优先使用ffprobe获取准确帧率
         self.total_frames = int(self._cap.get(cv2.CAP_PROP_FRAME_COUNT))
-        self.fps = int(self._cap.get(cv2.CAP_PROP_FPS))
+        accurate_fps = self.get_accurate_fps(video_path)
+        self.fps = accurate_fps if accurate_fps is not None else self._cap.get(cv2.CAP_PROP_FPS)
+        
+        # 更新帧间隔时间
+        self._update_frame_interval()
         
         # 读取第一帧获取尺寸
         ret, first_frame = self._cap.read()
@@ -80,6 +124,7 @@ class VideoProcessor:
         
         # 重置到视频开始
         self._cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+        self._last_frame_time = time.time()
         return first_frame
 
     def read_frame(self):
@@ -88,64 +133,38 @@ class VideoProcessor:
             return False, None
         return self._cap.read()
 
+    def should_process_frame(self):
+        """检查是否应该处理下一帧"""
+        current_time = time.time()
+        elapsed = current_time - self._last_frame_time
+        
+        # 如果经过的时间大于等于帧间隔，则处理下一帧
+        if elapsed >= self._frame_interval:
+            self._last_frame_time = current_time
+            return True
+        return False
+
     def display_frame(self, frame, title="Motion Detection"):
         """显示处理后的帧"""
-        # 获取当前帧信息
+        if frame is None:
+            return False
+            
+        # 准备显示信息
         current_frame = self.get_current_frame_number()
         current_time = self.format_time(current_frame)
         total_time = self.format_time(self.total_frames)
         progress = (current_frame / self.total_frames * 100) if self.total_frames > 0 else 0
-
-        # 添加信息文本
-        info_text = f"{current_time}/{total_time}({progress:.1f}%) {self.playback_speed}x"
         
-        # 增大字体
-        font = cv2.FONT_HERSHEY_SIMPLEX
-        font_scale = 1.2  # 增大字体大小
-        thickness = 2     # 增加字体粗细
-        (text_width, text_height), baseline = cv2.getTextSize(info_text, font, font_scale, thickness)
+        # 显示信息
+        info = {
+            'text': f"{current_time}/{total_time}({progress:.1f}%) {self.playback_speed}x",
+            'position': 'top-right'
+        }
         
-        # 计算右上角位置，留出更大的边距
-        x = frame.shape[1] - text_width - 20  # 增加右边距
-        y = text_height + 20                  # 增加上边距
-
-        # 创建文本背景
-        padding = 8  # 增加内边距
-        overlay = frame.copy()
-        cv2.rectangle(overlay, 
-                     (x - padding, y - text_height - padding),
-                     (x + text_width + padding, y + padding),
-                     (0, 0, 0), -1)
-        
-        # 添加半透明背景
-        alpha = 0.7
-        frame = cv2.addWeighted(overlay, alpha, frame, 1 - alpha, 0)
-
-        # 添加文本（白色，增加描边使文字更清晰）
-        cv2.putText(frame, info_text, (x, y), font, font_scale, (0, 0, 0), thickness + 2)  # 黑色描边
-        cv2.putText(frame, info_text, (x, y), font, font_scale, (255, 255, 255), thickness) # 白色文字
-
-        # 缩放显示帧
-        display_frame = cv2.resize(
-            frame, None,
-            fx=self.window_scale,
-            fy=self.window_scale
-        )
-        cv2.imshow(title, display_frame)
-        
-        # 根据播放速度计算等待时间（毫秒）
-        # 修正播放速度计算方式
-        base_wait_time = int(1000 / self.fps)  # 正常速度下每帧的等待时间
-        wait_time = int(base_wait_time / self.playback_speed)
-        
-        # 确保至少有1ms的等待时间用于处理键盘事件
-        wait_time = max(1, wait_time)
-        
-        key = cv2.waitKey(wait_time) & 0xFF
-        return key == ord('q')
+        return self.display_manager.display_frame(frame, info, title)
 
     def close(self):
         """关闭视频和窗口"""
         if self._cap is not None:
             self._cap.release()
-        cv2.destroyAllWindows()
+        self.display_manager.close_all_windows()

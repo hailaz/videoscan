@@ -1,7 +1,7 @@
 {
     "last_video_path": "P:/project/tools/3.mp4",
     "window_scale": 0.4,
-    "playback_speed": 16.0,
+    "playback_speed": 4.0,
     "output_directory": "P:/project/tools/output",
     "auto_split": false
 }
