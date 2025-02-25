@@ -118,7 +118,7 @@ class VideoProcessor:
                      (0, 0, 0), -1)
         
         # 添加半透明背景
-        alpha = 1
+        alpha = 0.7
         frame = cv2.addWeighted(overlay, alpha, frame, 1 - alpha, 0)
 
         # 添加文本（白色，增加描边使文字更清晰）
@@ -132,11 +132,15 @@ class VideoProcessor:
             fy=self.window_scale
         )
         cv2.imshow(title, display_frame)
-
+        
         # 根据播放速度计算等待时间（毫秒）
-        wait_time = int(1000 / (self.fps * self.playback_speed))
-        if wait_time <= 0:  # 对于高速播放，确保至少处理键盘事件
-            wait_time = 1
+        # 修正播放速度计算方式
+        base_wait_time = int(1000 / self.fps)  # 正常速度下每帧的等待时间
+        wait_time = int(base_wait_time / self.playback_speed)
+        
+        # 确保至少有1ms的等待时间用于处理键盘事件
+        wait_time = max(1, wait_time)
+        
         key = cv2.waitKey(wait_time) & 0xFF
         return key == ord('q')
 
