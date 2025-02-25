@@ -97,7 +97,7 @@ class VideoProcessor:
         progress = (current_frame / self.total_frames * 100) if self.total_frames > 0 else 0
 
         # 添加信息文本
-        info_text = f"{current_time}/{total_time}({progress:.1f}%)-{self.playback_speed}x"
+        info_text = f"{current_time}/{total_time}({progress:.1f}%) {self.playback_speed}x"
         
         # 增大字体
         font = cv2.FONT_HERSHEY_SIMPLEX
