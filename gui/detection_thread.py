@@ -5,41 +5,38 @@ from core.splitter import VideoSplitter
 from core.config_manager import ConfigManager
 from .video_processor import VideoProcessor
 import math
+import os
 
 class DetectionThread(QThread):
-    progress = pyqtSignal(float)
-    finished = pyqtSignal(list)
-    error = pyqtSignal(str)
-    auto_split_requested = pyqtSignal()  # 添加自动切割请求信号
+    progress = pyqtSignal(float)  # 进度信号 (0-100)
+    finished = pyqtSignal(list)   # 完成信号，发送检测到的片段列表
+    error = pyqtSignal(str)       # 错误信号
+    auto_split_requested = pyqtSignal()  # 自动切割请求信号
 
     def __init__(self, video_path, hardware, window_scale=0.7, threshold=30, 
                  min_area=1000, playback_speed=1.0, parent=None):
         super().__init__(parent)
         self.video_path = video_path
+        self.video_name = os.path.basename(video_path)
         self.video_processor = VideoProcessor(hardware, window_scale, playback_speed)
-        # 设置静止时间阈值为1秒
         self.detector = MotionDetector(threshold, min_area, static_time_threshold=1.0)
         self.config_manager = ConfigManager()
         self.parent = parent
         self._is_running = True
+        self._current_progress = 0  # 当前进度
 
     def stop(self):
         """停止检测线程"""
         self._is_running = False
+        
+    @property
+    def current_progress(self):
+        """获取当前进度"""
+        return self._current_progress
 
     def _align_time(self, time_value, round_up=False):
-        """对齐时间到整秒
-        
-        Args:
-            time_value (float): 原始时间值（秒）
-            round_up (bool): 是否向上取整，默认False表示向下取整
-        
-        Returns:
-            float: 对齐后的时间值
-        """
-        if round_up:
-            return math.ceil(time_value)
-        return math.floor(time_value)
+        """对齐时间到整秒"""
+        return math.ceil(time_value) if round_up else math.floor(time_value)
 
     def run(self):
         """运行检测线程"""
@@ -66,10 +63,9 @@ class DetectionThread(QThread):
                         segments.append(final_segment)
                     break
 
-                # 更新进度
-                self.progress.emit(
-                    round((frame_count / self.video_processor.total_frames) * 100, 2)
-                )
+                # 更新和发送进度
+                self._current_progress = round((frame_count / self.video_processor.total_frames) * 100, 2)
+                self.progress.emit(self._current_progress)
 
                 # 检测动作
                 motion_detected, display_frame, segment = self.detector.process_frame(
@@ -83,7 +79,8 @@ class DetectionThread(QThread):
                     segments.append(segment)
 
                 # 显示处理后的帧
-                if self.video_processor.display_frame(display_frame):
+                title = f"Motion Detection - {self.video_name}"
+                if self.video_processor.display_frame(display_frame, title):
                     self.stop()
                     # 处理未完成的片段
                     final_segment = self.detector.get_current_segment()
@@ -106,3 +103,8 @@ class DetectionThread(QThread):
         except Exception as e:
             if self._is_running:
                 self.error.emit(str(e))
+
+    def __del__(self):
+        """清理资源"""
+        if hasattr(self, 'video_processor'):
+            self.video_processor.close()

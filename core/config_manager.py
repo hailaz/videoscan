@@ -29,6 +29,7 @@ class ConfigManager:
         """获取默认配置"""
         return {
             'last_video_path': '',
+            'recent_video_list': [],  # 添加最近使用的视频列表
             'window_scale': 0.4,  # 调整默认缩放比例为 0.4
             'playback_speed': 1.0,
             'output_directory': '',  # 添加输出目录配置项
@@ -50,6 +51,48 @@ class ConfigManager:
     def set_last_video_path(self, path):
         """设置上次打开的视频路径"""
         self.config['last_video_path'] = path
+        # 同时更新最近视频列表
+        self.add_to_recent_videos(path)
+        self.save_config()
+
+    def get_recent_videos(self):
+        """获取最近使用的视频列表"""
+        return self.config.get('recent_video_list', [])
+
+    def add_to_recent_videos(self, path):
+        """添加视频到最近使用列表
+        
+        Args:
+            path: 视频文件路径
+        """
+        recent_list = self.get_recent_videos()
+        
+        # 如果路径已存在，将其移到列表开头
+        if path in recent_list:
+            recent_list.remove(path)
+        
+        # 将新路径添加到列表开头
+        recent_list.insert(0, path)
+        
+        # 保持列表长度不超过10个
+        self.config['recent_video_list'] = recent_list[:10]
+        self.save_config()
+
+    def remove_from_recent_videos(self, path):
+        """从最近使用列表中移除视频
+        
+        Args:
+            path: 视频文件路径
+        """
+        recent_list = self.get_recent_videos()
+        if path in recent_list:
+            recent_list.remove(path)
+            self.config['recent_video_list'] = recent_list
+            self.save_config()
+
+    def clear_recent_videos(self):
+        """清空最近使用的视频列表"""
+        self.config['recent_video_list'] = []
         self.save_config()
 
     def get_window_scale(self):

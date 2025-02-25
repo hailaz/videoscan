@@ -18,13 +18,14 @@ class VideoProcessor:
         self.fps = 0
         self.frame_width = 0
         self.frame_height = 0
+        self.video_path = None
         
         # 设置缩放和播放速度
-        self.window_scale = window_scale if window_scale is not None else self.config_manager.get_window_scale()
-        self.playback_speed = playback_speed if playback_speed is not None else self.config_manager.get_playback_speed()
+        self._window_scale = window_scale if window_scale is not None else self.config_manager.get_window_scale()
+        self._playback_speed = playback_speed if playback_speed is not None else self.config_manager.get_playback_speed()
         
         # 创建显示管理器
-        self.display_manager = DisplayManager(self.window_scale)
+        self.display_manager = DisplayManager(self._window_scale)
         
         # 帧率控制
         self._frame_interval = 0  # 帧间隔时间（秒）
@@ -108,6 +109,9 @@ class VideoProcessor:
         if not self._cap.isOpened():
             raise Exception("无法打开视频文件")
 
+        # 保存视频路径
+        self.video_path = video_path
+
         # 获取视频信息，优先使用ffprobe获取准确帧率
         self.total_frames = int(self._cap.get(cv2.CAP_PROP_FRAME_COUNT))
         accurate_fps = self.get_accurate_fps(video_path)
@@ -144,10 +148,14 @@ class VideoProcessor:
             return True
         return False
 
-    def display_frame(self, frame, title="Motion Detection"):
+    def display_frame(self, frame, title=None):
         """显示处理后的帧"""
         if frame is None:
             return False
+            
+        # 如果没有指定标题，使用视频文件名
+        if title is None and self.video_path:
+            title = f"Motion Detection - {Path(self.video_path).name}"
             
         # 准备显示信息
         current_frame = self.get_current_frame_number()
@@ -161,10 +169,15 @@ class VideoProcessor:
             'position': 'top-right'
         }
         
-        return self.display_manager.display_frame(frame, info, title)
+        return self.display_manager.display_frame(frame, info, title, window_id=self.video_path)
 
     def close(self):
         """关闭视频和窗口"""
         if self._cap is not None:
             self._cap.release()
-        self.display_manager.close_all_windows()
+            self._cap = None
+            
+        if self.video_path:
+            self.display_manager.close_window(self.video_path)
+        
+        self.video_path = None
