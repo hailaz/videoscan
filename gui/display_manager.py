@@ -13,6 +13,10 @@ class DisplayManager:
 
     def draw_overlay_text(self, frame, info_text, position='top-right'):
         """在帧上绘制叠加文本"""
+        # 如果是 UMat 对象，需要先转换回 CPU
+        if isinstance(frame, cv2.UMat):
+            frame = frame.get()
+            
         # 设置字体参数
         font = cv2.FONT_HERSHEY_SIMPLEX
         font_scale = 1.2
@@ -34,7 +38,7 @@ class DisplayManager:
                      (x - padding, y - text_height - padding),
                      (x + text_width + padding, y + padding),
                      (0, 0, 0), -1)
-        
+                     
         # 添加半透明背景
         alpha = 0.7
         frame = cv2.addWeighted(overlay, alpha, frame, 1 - alpha, 0)
@@ -89,6 +93,10 @@ class DisplayManager:
         # 生成窗口ID
         if window_id is None:
             window_id = title
+
+        # 如果是 UMat 对象，需要先转换回 CPU
+        if isinstance(frame, cv2.UMat):
+            frame = frame.get()
         
         # 添加文本叠加
         if info and info.get('text'):
@@ -97,7 +105,7 @@ class DisplayManager:
                 info['text'], 
                 info.get('position', 'top-right')
             )
-            
+        
         # 缩放显示帧
         if self.window_scale != 1.0:
             display_frame = cv2.resize(
@@ -123,11 +131,7 @@ class DisplayManager:
         return key == ord('q')
 
     def close_window(self, window_id):
-        """关闭指定的窗口
-        
-        Args:
-            window_id: 窗口ID
-        """
+        """关闭指定的窗口"""
         if window_id in self.windows:
             cv2.destroyWindow(window_id)
             del self.windows[window_id]

@@ -124,6 +124,11 @@ class VideoProcessor:
         ret, first_frame = self._cap.read()
         if not ret:
             raise Exception("无法读取视频帧")
+
+        # 如果是 UMat 对象，需要先转换回 CPU
+        if isinstance(first_frame, cv2.UMat):
+            first_frame = first_frame.get()
+            
         self.frame_height, self.frame_width = first_frame.shape[:2]
         
         # 重置到视频开始

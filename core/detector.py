@@ -60,9 +60,14 @@ class MotionDetector:
         # 更新当前时间
         self.current_time = frame_count / self.fps
         
-        # 转换为灰度图
-        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        gray = cv2.GaussianBlur(gray, (21, 21), 0)
+        # 如果启用GPU加速，使用UMat
+        if use_gpu:
+            frame_gpu = cv2.UMat(frame)
+            gray = cv2.cvtColor(frame_gpu, cv2.COLOR_BGR2GRAY)
+            gray = cv2.GaussianBlur(gray, (21, 21), 0)
+        else:
+            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            gray = cv2.GaussianBlur(gray, (21, 21), 0)
         
         # 应用排除区域
         gray = self.region_manager.apply_regions(gray)
@@ -73,12 +78,20 @@ class MotionDetector:
             
         # 计算差分
         frame_delta = cv2.absdiff(self.prev_frame, gray)
-        thresh = cv2.threshold(frame_delta, self.threshold, 255, cv2.THRESH_BINARY)[1]
-        thresh = cv2.dilate(thresh, None, iterations=2)
-        contours, _ = cv2.findContours(thresh.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        if use_gpu:
+            thresh = cv2.threshold(frame_delta, self.threshold, 255, cv2.THRESH_BINARY)[1]
+            thresh = cv2.dilate(thresh, None, iterations=2)
+            # 对于轮廓检测，需要下载到CPU
+            thresh_cpu = thresh.get()
+            contours, _ = cv2.findContours(thresh_cpu, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            display_frame = frame_gpu.get().copy() if isinstance(frame_gpu, cv2.UMat) else frame.copy()
+        else:
+            thresh = cv2.threshold(frame_delta, self.threshold, 255, cv2.THRESH_BINARY)[1]
+            thresh = cv2.dilate(thresh, None, iterations=2)
+            contours, _ = cv2.findContours(thresh.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            display_frame = frame.copy()
         
         # 处理显示帧
-        display_frame = frame.copy()
         self.region_manager.draw_regions(display_frame)
         
         # 检测动作

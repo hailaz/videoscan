@@ -6,6 +6,7 @@ class HardwareAccelerator:
     def __init__(self):
         self.use_gpu = False
         self.intel_gpu = False
+        self.intel_arc = False
         self.ffmpeg_path = self._find_ffmpeg()
         self._initialize_gpu()
 
@@ -32,12 +33,19 @@ class HardwareAccelerator:
                 device = cv2.ocl.Device_getDefault()
                 if device is not None:
                     vendor = device.vendorName()
+                    device_name = device.name()
                     if "Intel" in vendor:
                         print(f"检测到 Intel GPU:")
-                        print(f"设备名称: {device.name()}")
+                        print(f"设备名称: {device_name}")
                         print(f"供应商: {vendor}")
                         print(f"OpenCL 版本: {device.version()}")
                         self.intel_gpu = True
+                        
+                        # 检查是否为 Arc GPU
+                        if "Arc" in device_name:
+                            print("检测到 Intel Arc GPU，启用特殊优化")
+                            self.intel_arc = True
+                        
                         self.use_gpu = True
                         cv2.ocl.setUseOpenCL(True)
                         cv2.setUseOptimized(True)
@@ -50,11 +58,17 @@ class HardwareAccelerator:
     def get_video_capture(self, video_path):
         """获取适合的视频捕获对象"""
         try:
-            cap = cv2.VideoCapture(video_path, cv2.CAP_ANY)
+            # 针对 Intel Arc GPU 使用 D3D11 加速
             if platform.system() == 'Windows' and self.use_gpu:
-                cap.set(cv2.CAP_PROP_HW_ACCELERATION, cv2.VIDEO_ACCELERATION_D3D11)
-                cap.set(cv2.CAP_PROP_HW_DEVICE, 0)
-            return cap
+                cap = cv2.VideoCapture(video_path, cv2.CAP_MSMF)  # 使用 Media Foundation
+                if self.intel_arc:
+                    # 设置硬件加速
+                    cap.set(cv2.CAP_PROP_HW_ACCELERATION, cv2.VIDEO_ACCELERATION_D3D11)
+                    cap.set(cv2.CAP_PROP_HW_DEVICE, 0)
+                    # 尝试启用 Intel GPU 解码
+                    cap.set(cv2.CAP_PROP_HW_ACCELERATION_USE_OPENCL, 1)
+                return cap
+            return cv2.VideoCapture(video_path, cv2.CAP_ANY)
         except Exception as e:
             print(f"硬件解码初始化失败: {str(e)}")
             return cv2.VideoCapture(video_path)
