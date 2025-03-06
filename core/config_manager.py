@@ -33,7 +33,8 @@ class ConfigManager:
             'window_scale': 0.4,  # 调整默认缩放比例为 0.4
             'playback_speed': 1.0,
             'output_directory': '',  # 添加输出目录配置项
-            'auto_split': False  # 添加自动切割配置项
+            'auto_split': False,  # 添加自动切割配置项
+            'max_concurrent_videos': 2  # 默认同时处理2个视频
         }
 
     def save_config(self):
@@ -119,4 +120,18 @@ class ConfigManager:
     def set_auto_split(self, auto_split):
         """设置是否自动切割视频"""
         self.config['auto_split'] = auto_split
+        self.save_config()
+        
+    def get_max_concurrent_videos(self):
+        """获取同时处理的最大视频数量"""
+        return self.config.get('max_concurrent_videos', 2)
+        
+    def set_max_concurrent_videos(self, count):
+        """设置同时处理的最大视频数量
+        
+        Args:
+            count: 同时处理的视频数量，必须大于0
+        """
+        count = max(1, int(count))  # 确保至少为1
+        self.config['max_concurrent_videos'] = count
         self.save_config()

@@ -49,6 +49,11 @@ class SettingsGroup(QGroupBox):
             self.config_manager.get_playback_speed(), 0.1)
         self.speed_spin.setDecimals(1)  # 设置小数位数为1位
 
+        # 添加同时处理视频数量设置
+        self.concurrent_videos_spin = self._create_spin_box(
+            main_layout, "并行处理", 1, 10,
+            self.config_manager.get_max_concurrent_videos())
+        
         # GPU选项
         self.use_gpu = QCheckBox("使用GPU加速")
         self.use_gpu.setChecked(self.hardware.has_gpu)
@@ -71,6 +76,9 @@ class SettingsGroup(QGroupBox):
                 lambda v: setattr(self.parent.video_processor, 'playback_speed', v))
             self.auto_split.stateChanged.connect(
                 lambda state: self.config_manager.set_auto_split(bool(state)))
+            # 添加并行处理数量变更的信号连接
+            self.concurrent_videos_spin.valueChanged.connect(
+                lambda v: self.config_manager.set_max_concurrent_videos(v))
 
     def _create_spin_box(self, layout, label, min_val, max_val, default):
         """创建整数输入框"""
@@ -121,6 +129,7 @@ class SettingsGroup(QGroupBox):
             'scale': self.scale_spin.value(),
             'speed': self.speed_spin.value(),
             'use_gpu': self.use_gpu.isChecked(),
-            'auto_split': self.auto_split.isChecked()
+            'auto_split': self.auto_split.isChecked(),
+            'max_concurrent_videos': self.concurrent_videos_spin.value()
         }
         return settings

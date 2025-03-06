@@ -19,6 +19,7 @@ class VideoProcessor:
         self.frame_width = 0
         self.frame_height = 0
         self.video_path = None
+        self.duration_seconds = 0  # 视频总时长(秒)
         
         # 设置缩放和播放速度
         self._window_scale = window_scale if window_scale is not None else self.config_manager.get_window_scale()
@@ -72,15 +73,21 @@ class VideoProcessor:
             return 0
         return int(self._cap.get(cv2.CAP_PROP_POS_FRAMES))
 
-    def format_time(self, frame_number):
-        """将帧号转换为时间格式 HH:MM:SS"""
-        if self.fps == 0:
-            return "00:00:00"
-        total_seconds = frame_number / self.fps
-        hours = int(total_seconds // 3600)
-        minutes = int((total_seconds % 3600) // 60)
-        seconds = int(total_seconds % 60)
-        return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+    def format_time(self, seconds):
+        """将秒数转换为时间格式 HH:MM:SS.xx"""
+        if seconds is None or seconds == 0:
+            return "00:00:00.00"
+        
+        hours = int(seconds // 3600)
+        minutes = int((seconds % 3600) // 60)
+        secs = seconds % 60
+        return f"{hours:02d}:{minutes:02d}:{secs:05.2f}"
+
+    def get_time_from_frames(self, frame_number):
+        """根据帧号计算时间（秒）"""
+        if self.fps <= 0:
+            return 0
+        return frame_number / self.fps
 
     def get_accurate_fps(self, video_path):
         """使用ffprobe获取准确的视频帧率"""
@@ -103,6 +110,26 @@ class VideoProcessor:
             print(f"获取准确帧率失败: {str(e)}")
             return None
 
+    def get_accurate_duration(self, video_path):
+        """使用ffprobe获取准确的视频时长（秒）"""
+        try:
+            ffprobe_path = str(Path(__file__).parent.parent / "bin" / "ffprobe.exe")
+            cmd = [
+                ffprobe_path,
+                "-v", "error",
+                "-show_entries", "format=duration",
+                "-of", "default=noprint_wrappers=1:nokey=1",
+                video_path
+            ]
+            result = subprocess.run(cmd, capture_output=True, text=True)
+            if result.returncode == 0:
+                duration = float(result.stdout.strip())
+                return duration
+            return None
+        except Exception as e:
+            print(f"获取视频时长失败: {str(e)}")
+            return None
+
     def open_video(self, video_path):
         """打开视频文件"""
         self._cap = self.hardware.get_video_capture(video_path)
@@ -112,10 +139,20 @@ class VideoProcessor:
         # 保存视频路径
         self.video_path = video_path
 
-        # 获取视频信息，优先使用ffprobe获取准确帧率
+        # 获取视频信息，优先使用ffprobe获取准确信息
         self.total_frames = int(self._cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        
+        # 获取准确的视频时长
+        accurate_duration = self.get_accurate_duration(video_path)
+        self.duration_seconds = accurate_duration if accurate_duration is not None else 0
+        
+        # 获取准确的帧率
         accurate_fps = self.get_accurate_fps(video_path)
         self.fps = accurate_fps if accurate_fps is not None else self._cap.get(cv2.CAP_PROP_FPS)
+        
+        # 如果有准确的时长和帧率，重新计算总帧数
+        if accurate_duration is not None and accurate_fps is not None:
+            self.total_frames = int(accurate_duration * accurate_fps)
         
         # 更新帧间隔时间
         self._update_frame_interval()
@@ -164,8 +201,12 @@ class VideoProcessor:
             
         # 准备显示信息
         current_frame = self.get_current_frame_number()
-        current_time = self.format_time(current_frame)
-        total_time = self.format_time(self.total_frames)
+        current_seconds = self.get_time_from_frames(current_frame)
+        current_time = self.format_time(current_seconds)
+        
+        # 为总时长使用准确获取的数值或根据总帧数计算
+        total_time = self.format_time(self.duration_seconds if self.duration_seconds > 0 else self.get_time_from_frames(self.total_frames))
+        
         progress = (current_frame / self.total_frames * 100) if self.total_frames > 0 else 0
         
         # 显示信息
