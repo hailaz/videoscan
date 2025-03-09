@@ -1,6 +1,7 @@
 """硬件加速器模块"""
 import cv2
 import platform
+import os
 from pathlib import Path
 from .hardware_detector import HardwareDetector
 
