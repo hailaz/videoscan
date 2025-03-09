@@ -112,7 +112,7 @@ class VideoSplitter:
             
             # 生成带时间戳的输出文件名
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            merged_output_path = os.path.join(output_dir, f"{base_filename}_合并_{timestamp}.mp4")
+            merged_output_path = os.path.join(output_dir, f"{base_filename}_out.mp4")
             
             # 合并视频
             result = self.merger.merge_videos(output_files, merged_output_path, ffmpeg_path)

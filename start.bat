@@ -7,8 +7,8 @@ python --version || (
     exit /b 1
 )
 
-@REM echo 正在安装/更新依赖包...
-@REM python -m pip install -r requirements.txt
+echo 正在安装/更新依赖包...
+python -m pip install -r requirements.txt
 
 echo 正在启动应用程序...
 python main.py
