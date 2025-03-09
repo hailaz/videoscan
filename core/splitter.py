@@ -110,9 +110,11 @@ class VideoSplitter:
             if self.log_callback:
                 self.log_callback("开始合并所有视频片段...")
             
-            # 生成带时间戳的输出文件名
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            merged_output_path = os.path.join(output_dir, f"{base_filename}_out.mp4")
+            self.log_callback(f"output_dir 666: {output_dir}")
+            
+            # 生成输出文件名，直接放在输出目录下
+            merged_output_filename = f"{base_filename}_out.mp4"
+            merged_output_path = os.path.join(output_dir, merged_output_filename)
             
             # 合并视频
             result = self.merger.merge_videos(output_files, merged_output_path, ffmpeg_path)

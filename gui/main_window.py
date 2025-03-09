@@ -21,10 +21,14 @@ class MainWindow(QMainWindow):
         self.setGeometry(100, 100, 1000, 800)
         
         # 初始化核心组件
+        self.config_manager = ConfigManager()  # 移到最前面初始化
         self.hardware = HardwareAccelerator()
+        # 使用硬件检测获取最优并行处理数
+        optimal_workers = self.hardware.get_optimal_workers()
+        self.config_manager.set_max_concurrent_videos(optimal_workers)
+        
         self.splitter = VideoSplitter()
         self.video_processor = VideoProcessor(self.hardware)
-        self.config_manager = ConfigManager()
         self.detection_threads = {}  # 存储所有检测线程
         self.segments = {}  # 存储每个视频的片段信息
         self.completed_count = 0  # 已完成的视频数量
@@ -37,6 +41,9 @@ class MainWindow(QMainWindow):
         
         self._initialize_ui()
         self._apply_styles()
+        
+        # 记录硬件信息
+        self._log_hardware_info()
 
     def _initialize_ui(self):
         """初始化UI布局"""
@@ -66,6 +73,22 @@ class MainWindow(QMainWindow):
     def log_message(self, message):
         """添加日志消息"""
         self.log_group.log_message(message)
+
+    def _log_hardware_info(self):
+        """记录硬件信息"""
+        self.log_message("\n硬件信息:")
+        if self.hardware.has_gpu:
+            gpu_type = "Intel Arc" if self.hardware.gpu_info['intel_arc'] else \
+                      "Intel GPU" if self.hardware.gpu_info['intel_gpu'] else \
+                      "CUDA GPU"
+            self.log_message(f"- GPU加速: {gpu_type}")
+        else:
+            self.log_message("- GPU加速: 未启用")
+            
+        workers = self.config_manager.get_max_concurrent_videos()
+        self.log_message(f"- CPU核心数: {self.hardware.detector.cpu_count}")
+        self.log_message(f"- 最优并行处理数: {workers}")
+        self.log_message(f"- FFmpeg: {'可用' if self.hardware.has_ffmpeg else '未找到'}\n")
 
     def start_detection(self):
         """开始检测"""
@@ -289,19 +312,16 @@ class MainWindow(QMainWindow):
                     self.operations_group.split_progress_bar.setValue(0)
                     self.splitter.set_progress_callback(self.update_split_progress)
                     
-                    video_output_dir = os.path.join(output_dir, os.path.splitext(os.path.basename(file_path))[0])
-                    os.makedirs(video_output_dir, exist_ok=True)
-                    
                     output_files = self.splitter.split_video(
                         file_path,
                         segments,
-                        video_output_dir,
+                        output_dir,
                         self.hardware.ffmpeg_path
                     )
                     
                     if output_files:
                         success_count += 1
-                        self.log_message(f"视频切割完成！保存在: {video_output_dir}")
+                        self.log_message(f"视频切割完成！保存在: {output_dir}")
                     else:
                         raise Exception("没有生成任何输出文件")
                         
