@@ -23,9 +23,6 @@ class MainWindow(QMainWindow):
         # 初始化核心组件
         self.config_manager = ConfigManager()  # 移到最前面初始化
         self.hardware = HardwareAccelerator()
-        # 使用硬件检测获取最优并行处理数
-        optimal_workers = self.hardware.get_optimal_workers()
-        self.config_manager.set_max_concurrent_videos(optimal_workers)
         
         self.splitter = VideoSplitter()
         self.video_processor = VideoProcessor(self.hardware)

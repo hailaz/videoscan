@@ -101,21 +101,3 @@ class HardwareDetector:
             
         return gpu_info
         
-    def get_optimal_workers(self):
-        """获取最优的并行工作进程数"""
-        # 基础工作进程数为物理CPU核心数
-        optimal_workers = self.cpu_count
-        
-        # 如果有GPU，可以增加工作进程数
-        if self.gpu_info['has_gpu']:
-            if self.gpu_info['cuda_available']:
-                optimal_workers = min(optimal_workers + 2, self.total_cpu_count)
-            elif self.gpu_info['intel_gpu']:
-                optimal_workers = min(optimal_workers + 1, self.total_cpu_count)
-                
-        # 考虑系统内存情况
-        memory_percent = self.memory.percent
-        if memory_percent > 80:  # 内存使用率高时减少工作进程
-            optimal_workers = max(1, optimal_workers - 1)
-            
-        return optimal_workers

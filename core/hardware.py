@@ -85,7 +85,3 @@ class HardwareAccelerator:
     def has_ffmpeg(self):
         """是否有可用的FFmpeg"""
         return self.ffmpeg_path is not None
-
-    def get_optimal_workers(self):
-        """获取最优的并行工作进程数"""
-        return self.detector.get_optimal_workers()
