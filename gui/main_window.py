@@ -17,7 +17,7 @@ from collections import deque
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle('智能视频切割工具')
+        self.setWindowTitle('监控视频切割工具')
         self.setGeometry(100, 100, 1000, 800)
         
         # 初始化核心组件
