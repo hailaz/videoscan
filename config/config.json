@@ -1,17 +1,14 @@
 {
-    "last_video_path": "D:/camera/2025/00_20250210175554_20250210181947.mp4",
+    "last_video_path": "P:/project/tools/input/00_20250210175554_20250210181947_out.mp4",
     "window_scale": 0.4,
     "playback_speed": 5.0,
     "output_directory": "P:/project/tools/output",
     "auto_split": true,
     "recent_video_list": [
-        "D:/camera/2025/00_20250210175554_20250210181947.mp4",
-        "D:/camera/2025/00_20250210173607_20250210175553.mp4",
-        "D:/camera/2025/00_20250210171533_20250210173607.mp4",
-        "D:/camera/2025/00_20250210165502_20250210171533.mp4",
-        "D:/camera/2025/00_20250210163430_20250210165501.mp4",
-        "D:/camera/2025/00_20250210161457_20250210163430.mp4",
-        "D:/camera/2025/00_20250210155537_20250210161456.mp4"
+        "P:/project/tools/input/00_20250210175554_20250210181947_out.mp4",
+        "P:/project/tools/input/00_20250210173607_20250210175553_out.mp4",
+        "P:/project/tools/input/00_20250210163430_20250210165501_out.mp4",
+        "P:/project/tools/input/00_20250210161457_20250210163430_out.mp4"
     ],
     "max_concurrent_videos": 2,
     "show_preview": false

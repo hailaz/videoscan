@@ -1,5 +1,5 @@
 """设置组件"""
-from PyQt5.QtWidgets import (QGroupBox, QGridLayout, QHBoxLayout, QLabel, 
+from PyQt5.QtWidgets import (QGroupBox, QGridLayout, QHBoxLayout, QVBoxLayout, QLabel, 
                            QSpinBox, QDoubleSpinBox, QCheckBox, QWidget)
 from PyQt5.QtCore import Qt
 from core.config_manager import ConfigManager
@@ -29,48 +29,64 @@ class SettingsGroup(QGroupBox):
         self._init_ui()
 
     def _init_ui(self):
-        main_layout = QHBoxLayout()
-        main_layout.setSpacing(12)
+        main_layout = QVBoxLayout()  # 改为垂直布局
+        main_layout.setSpacing(10)
         main_layout.setContentsMargins(10, 10, 10, 10)
         
-        # 参数控件布局
+        # 创建两行布局
+        top_row = QHBoxLayout()
+        bottom_row = QHBoxLayout()
+        
+        # 第一行：基本检测参数
         self.threshold_spin = self._create_spin_box(
-            main_layout, "检测阈值", 1, 100, 25)
+            top_row, "检测阈值", 1, 100, 25)
         
         self.min_area_spin = self._create_spin_box(
-            main_layout, "最小区域", 100, 10000, 1000)
+            top_row, "最小区域", 100, 10000, 1000)
             
+        self.concurrent_videos_spin = self._create_spin_box(
+            top_row, "并行处理", 1, 10,
+            self.config_manager.get_max_concurrent_videos())
+        
+        top_row.addStretch()
+        
+        # 第二行：显示和控制参数
         self.scale_spin = self._create_double_spin_box(
-            main_layout, "预览比例", 0.1, 1.0, 
+            bottom_row, "预览比例", 0.1, 1.0, 
             self.config_manager.get_window_scale(), 0.1)
             
         self.speed_spin = self._create_double_spin_box(
-            main_layout, "处理速度", 0.1, 16.0, 
+            bottom_row, "处理速度", 0.1, 16.0, 
             self.config_manager.get_playback_speed(), 0.1)
-        self.speed_spin.setDecimals(1)  # 设置小数位数为1位
-
-        # 添加同时处理视频数量设置
-        self.concurrent_videos_spin = self._create_spin_box(
-            main_layout, "并行处理", 1, 10,
-            self.config_manager.get_max_concurrent_videos())
+        self.speed_spin.setDecimals(1)
+        
+        # 添加复选框组
+        checkbox_layout = QHBoxLayout()
+        checkbox_layout.setSpacing(20)  # 增加复选框之间的间距
         
         # GPU选项
-        self.use_gpu = QCheckBox("使用GPU加速")
+        self.use_gpu = QCheckBox("GPU加速")
         self.use_gpu.setChecked(self.hardware.has_gpu)
         self.use_gpu.setEnabled(self.hardware.has_gpu)
-        main_layout.addWidget(self.use_gpu)
+        checkbox_layout.addWidget(self.use_gpu)
 
         # 自动切割选项
         self.auto_split = QCheckBox("自动切割")
         self.auto_split.setChecked(self.config_manager.get_auto_split())
-        main_layout.addWidget(self.auto_split)
+        checkbox_layout.addWidget(self.auto_split)
         
         # 预览显示选项
         self.show_preview = QCheckBox("显示预览")
         self.show_preview.setChecked(self.config_manager.get_show_preview())
-        main_layout.addWidget(self.show_preview)
+        checkbox_layout.addWidget(self.show_preview)
         
-        main_layout.addStretch()
+        bottom_row.addLayout(checkbox_layout)
+        bottom_row.addStretch()
+        
+        # 添加到主布局
+        main_layout.addLayout(top_row)
+        main_layout.addLayout(bottom_row)
+        
         self.setLayout(main_layout)
         
         # 连接信号

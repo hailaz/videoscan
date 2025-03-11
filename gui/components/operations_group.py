@@ -1,8 +1,6 @@
 """操作组件"""
-from PyQt5.QtWidgets import (QGroupBox, QHBoxLayout, QVBoxLayout, 
-                           QPushButton, QProgressBar, QStyle)
+from PyQt5.QtWidgets import (QGroupBox, QHBoxLayout, QPushButton, QStyle)
 from PyQt5.QtCore import Qt
-from PyQt5.QtWidgets import QApplication
 
 class OperationsGroup(QGroupBox):
     def __init__(self, parent=None):
@@ -13,41 +11,29 @@ class OperationsGroup(QGroupBox):
 
     def _init_ui(self):
         """初始化UI"""
-        main_layout = QVBoxLayout()
-        main_layout.setSpacing(10)
-
-        # 按钮行
         btn_layout = QHBoxLayout()
+        btn_layout.setSpacing(15)  # 增加按钮间距
+        btn_layout.setContentsMargins(10, 10, 10, 10)
+
+        # 开始/停止检测按钮
         self.detect_btn = QPushButton("开始检测")
         self.detect_btn.setIcon(self.style().standardIcon(QStyle.SP_MediaPlay))
         self.detect_btn.clicked.connect(self._toggle_detection)
-        self.detect_btn.setEnabled(False)  # 初始禁用，等待选择文件后启用
+        self.detect_btn.setEnabled(False)
+        self.detect_btn.setMinimumWidth(120)  # 设置最小宽度
 
+        # 切割视频按钮
         self.split_btn = QPushButton("切割视频")
         self.split_btn.setIcon(self.style().standardIcon(QStyle.SP_DialogSaveButton))
         self.split_btn.clicked.connect(self._split_video)
-        self.split_btn.setEnabled(False)  # 初始禁用，等待检测完成后启用
+        self.split_btn.setEnabled(False)
+        self.split_btn.setMinimumWidth(120)  # 设置最小宽度
 
         btn_layout.addWidget(self.detect_btn)
         btn_layout.addWidget(self.split_btn)
+        btn_layout.addStretch()  # 添加弹性空间
 
-        # 检测进度条
-        progress_layout = QVBoxLayout()
-        self.progress_bar = QProgressBar()
-        self.progress_bar.setFormat("检测进度: %p%")
-        self.progress_bar.setTextVisible(True)
-        progress_layout.addWidget(self.progress_bar)
-
-        # 切割进度条
-        self.split_progress_bar = QProgressBar()
-        self.split_progress_bar.setFormat("切割进度: %p%")
-        self.split_progress_bar.setTextVisible(True)
-        progress_layout.addWidget(self.split_progress_bar)
-
-        # 添加到主布局
-        main_layout.addLayout(btn_layout)
-        main_layout.addLayout(progress_layout)
-        self.setLayout(main_layout)
+        self.setLayout(btn_layout)
 
     def _toggle_detection(self):
         """切换检测状态"""
@@ -57,9 +43,6 @@ class OperationsGroup(QGroupBox):
             self.detect_btn.setIcon(self.style().standardIcon(QStyle.SP_MediaStop))
             self.split_btn.setEnabled(False)
             self.is_detecting = True
-            # 重置进度条
-            self.progress_bar.setValue(0)
-            self.split_progress_bar.setValue(0)
             self.parent.start_detection()
         else:
             # 停止检测

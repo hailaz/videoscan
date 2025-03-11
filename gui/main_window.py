@@ -47,24 +47,33 @@ class MainWindow(QMainWindow):
         main_widget = QWidget()
         self.setCentralWidget(main_widget)
         layout = QVBoxLayout(main_widget)
-        layout.setSpacing(15)
-        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(8)  # 减小组件间距
+        layout.setContentsMargins(15, 15, 15, 15)  # 调整边距
 
-        # 创建并添加UI组件
-        self.log_group = LogGroup(self)
+        # 创建并按顺序添加UI组件
+        self.log_group = LogGroup(self)  # 先创建日志组件
         self.settings_group = SettingsGroup(self.hardware, self)
         self.operations_group = OperationsGroup(self)
-        self.file_group = FileGroup(self)
+        self.file_group = FileGroup(self)  # 最后创建文件组件
+        
+        # 调整组件高度策略
+        self.file_group.setMaximumHeight(400)  # 限制文件列表最大高度
+        self.settings_group.setMaximumHeight(150)  # 限制设置区域最大高度
+        self.operations_group.setMaximumHeight(80)  # 限制操作区域最大高度
+        
+        # 添加组件到布局
+        layout.addWidget(self.file_group, 2)  # 分配相对空间
+        layout.addWidget(self.settings_group, 1)
+        layout.addWidget(self.operations_group, 1)
+        layout.addWidget(self.log_group, 2)
+        
+        # 在所有组件初始化完成后加载历史记录
+        self.file_group._load_recent_videos()
         
         # 连接预览显示设置变更信号
         if hasattr(self, 'video_processor'):
             self.settings_group.show_preview.stateChanged.connect(
                 lambda state: setattr(self.video_processor, 'show_preview', bool(state)))
-        
-        layout.addWidget(self.file_group)
-        layout.addWidget(self.settings_group)
-        layout.addWidget(self.operations_group)
-        layout.addWidget(self.log_group)
 
     def _apply_styles(self):
         """应用UI样式"""
@@ -108,14 +117,13 @@ class MainWindow(QMainWindow):
         self.active_threads = 0
         self.total_videos = len(file_paths)
         
-        # 更新UI状态
-        self.operations_group.progress_bar.setValue(0)
-        self.operations_group.split_progress_bar.setValue(0)
         self.log_message(f"开始检测 {len(file_paths)} 个视频文件中的动作...")
         
         # 将所有视频文件添加到队列中
         for file_path in file_paths:
             self.video_queue.append(file_path)
+            # 初始化每个文件的状态
+            self.file_group.update_file_status(file_path, "等待处理", 0)
         
         # 根据配置的最大并行处理数量启动视频处理
         max_concurrent = self.config_manager.get_max_concurrent_videos()
@@ -168,11 +176,13 @@ class MainWindow(QMainWindow):
         """停止所有检测"""
         if self.detection_threads:
             self.log_message("正在停止所有检测...")
-            for thread in self.detection_threads.values():
+            for file_path, thread in self.detection_threads.items():
                 if thread.isRunning():
                     thread.stop()
                     thread.quit()
                     thread.wait()
+                    self.file_group.update_file_status(file_path, "已停止", 0)
+                    
             self.detection_threads.clear()
             self.video_queue.clear()  # 清空队列
             self.active_threads = 0
@@ -190,29 +200,11 @@ class MainWindow(QMainWindow):
             value: 进度值(0-100)
             file_path: 视频文件路径
         """
-        # 计算总体进度
-        total_progress = 0
-        active_threads = 0
-        for thread in self.detection_threads.values():
-            if thread.isRunning():
-                active_threads += 1
-                if thread.video_path == file_path:
-                    total_progress += value
-                else:
-                    total_progress += thread.current_progress
-        
-        # 计算已完成的视频进度
-        completed_progress = (self.completed_count / self.total_videos) * 100 if self.total_videos > 0 else 0
-        
-        if active_threads > 0:
-            # 当前活动线程的进度
-            active_progress = total_progress / len(self.detection_threads)
-            # 总体进度 = 已完成视频进度 + 当前处理视频的加权进度
-            weighted_progress = completed_progress + (active_progress * (len(self.detection_threads) / self.total_videos))
-            self.operations_group.progress_bar.setValue(int(weighted_progress))
+        # 更新文件状态和进度
+        self.file_group.update_file_status(file_path, "处理中", value)
         
         # 检查是否所有线程都已完成
-        if active_threads == 0 and len(self.video_queue) == 0:
+        if self.active_threads == 0 and len(self.video_queue) == 0:
             self.operations_group.detect_btn.setText('开始检测')
             self.operations_group.detect_btn.setIcon(self.style().standardIcon(QStyle.SP_MediaPlay))
             self.operations_group.is_detecting = False
@@ -231,6 +223,9 @@ class MainWindow(QMainWindow):
         
         if segments:  # 只在有检测到片段时添加
             self.segments[file_path] = segments
+            self.file_group.update_file_status(file_path, f"完成 ({len(segments)}个片段)", 100)
+        else:
+            self.file_group.update_file_status(file_path, "无动作片段", 100)
             
         self.completed_count += 1
         
@@ -255,7 +250,6 @@ class MainWindow(QMainWindow):
             self.operations_group.detect_btn.setText('开始检测')
             self.operations_group.detect_btn.setIcon(self.style().standardIcon(QStyle.SP_MediaPlay))
             self.operations_group.is_detecting = False
-            self.operations_group.progress_bar.setValue(100)
             # 如果有检测到片段，启用切割按钮
             if self.segments:
                 self.operations_group.split_btn.setEnabled(True)
@@ -264,6 +258,9 @@ class MainWindow(QMainWindow):
     def detection_error(self, error_msg, file_path):
         """处理检测错误"""
         self.active_threads -= 1
+        
+        # 更新文件状态为错误
+        self.file_group.update_file_status(file_path, f"错误", 0)
         
         QMessageBox.critical(self, '错误', f'视频 {os.path.basename(file_path)} 检测出错：{error_msg}')
         self.log_message(f'错误: 处理 {os.path.basename(file_path)} 时出错: {error_msg}')
@@ -309,8 +306,9 @@ class MainWindow(QMainWindow):
             for file_path, segments in self.segments.items():
                 try:
                     self.log_message(f"\n开始切割视频: {os.path.basename(file_path)}...")
-                    self.operations_group.split_progress_bar.setValue(0)
-                    self.splitter.set_progress_callback(self.update_split_progress)
+                    self.splitter.set_progress_callback(
+                        lambda value, fp=file_path: self.file_group.update_file_status(fp, "切割中", value)
+                    )
                     
                     output_files = self.splitter.split_video(
                         file_path,
@@ -321,6 +319,7 @@ class MainWindow(QMainWindow):
                     
                     if output_files:
                         success_count += 1
+                        self.file_group.update_file_status(file_path, "切割完成", 100)
                         self.log_message(f"视频切割完成！保存在: {output_dir}")
                     else:
                         raise Exception("没有生成任何输出文件")
@@ -329,6 +328,7 @@ class MainWindow(QMainWindow):
                     error_msg = f'视频 {os.path.basename(file_path)} 切割失败：{str(e)}'
                     QMessageBox.critical(self, '错误', error_msg)
                     self.log_message(f"错误: {error_msg}")
+                    self.file_group.update_file_status(file_path, "切割失败", 0)
             
             if success_count > 0:
                 if not auto:
@@ -340,8 +340,8 @@ class MainWindow(QMainWindow):
             self.log_message("自动切割失败：未配置输出目录")
 
     def update_split_progress(self, value):
-        """更新切割进度"""
-        self.operations_group.split_progress_bar.setValue(int(value))
+        """更新切割进度 - 已废弃，使用文件状态更新替代"""
+        pass
 
 def main():
     app = QApplication(sys.argv)
