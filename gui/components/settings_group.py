@@ -65,6 +65,11 @@ class SettingsGroup(QGroupBox):
         self.auto_split.setChecked(self.config_manager.get_auto_split())
         main_layout.addWidget(self.auto_split)
         
+        # 预览显示选项
+        self.show_preview = QCheckBox("显示预览")
+        self.show_preview.setChecked(self.config_manager.get_show_preview())
+        main_layout.addWidget(self.show_preview)
+        
         main_layout.addStretch()
         self.setLayout(main_layout)
         
@@ -79,6 +84,9 @@ class SettingsGroup(QGroupBox):
             # 添加并行处理数量变更的信号连接
             self.concurrent_videos_spin.valueChanged.connect(
                 lambda v: self.config_manager.set_max_concurrent_videos(v))
+            # 添加预览显示状态变更的信号连接
+            self.show_preview.stateChanged.connect(
+                lambda state: self.config_manager.set_show_preview(bool(state)))
 
     def _create_spin_box(self, layout, label, min_val, max_val, default):
         """创建整数输入框"""
@@ -130,6 +138,7 @@ class SettingsGroup(QGroupBox):
             'speed': self.speed_spin.value(),
             'use_gpu': self.use_gpu.isChecked(),
             'auto_split': self.auto_split.isChecked(),
-            'max_concurrent_videos': self.concurrent_videos_spin.value()
+            'max_concurrent_videos': self.concurrent_videos_spin.value(),
+            'show_preview': self.show_preview.isChecked()  # 添加预览显示设置
         }
         return settings

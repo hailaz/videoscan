@@ -24,6 +24,7 @@ class VideoProcessor:
         # 设置缩放和播放速度
         self._window_scale = window_scale if window_scale is not None else self.config_manager.get_window_scale()
         self._playback_speed = playback_speed if playback_speed is not None else self.config_manager.get_playback_speed()
+        self._show_preview = self.config_manager.get_show_preview()  # 获取预览显示设置
         
         # 创建显示管理器
         self.display_manager = DisplayManager(self._window_scale)
@@ -60,6 +61,21 @@ class VideoProcessor:
         # 保存到配置
         self.config_manager.config['window_scale'] = self._window_scale
         self.config_manager.save_config()
+
+    @property
+    def show_preview(self):
+        """获取是否显示预览"""
+        return self._show_preview
+
+    @show_preview.setter
+    def show_preview(self, value):
+        """设置是否显示预览"""
+        self._show_preview = value
+        # 如果禁用预览，关闭所有预览窗口
+        if not value:
+            self.display_manager.close_all_windows()
+        # 保存到配置
+        self.config_manager.set_show_preview(value)
 
     def _update_frame_interval(self):
         """更新帧间隔时间"""
@@ -192,7 +208,7 @@ class VideoProcessor:
 
     def display_frame(self, frame, title=None):
         """显示处理后的帧"""
-        if frame is None:
+        if frame is None or not self._show_preview:  # 添加预览显示控制
             return False
             
         # 如果没有指定标题，使用视频文件名
@@ -223,7 +239,7 @@ class VideoProcessor:
             self._cap.release()
             self._cap = None
             
-        if self.video_path:
+        if self._show_preview and self.video_path:  # 只在预览开启时关闭窗口
             self.display_manager.close_window(self.video_path)
         
         self.video_path = None

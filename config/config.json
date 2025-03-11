@@ -13,5 +13,6 @@
         "D:/camera/2025/00_20250210161457_20250210163430.mp4",
         "D:/camera/2025/00_20250210155537_20250210161456.mp4"
     ],
-    "max_concurrent_videos": 2
+    "max_concurrent_videos": 2,
+    "show_preview": false
 }

@@ -34,7 +34,8 @@ class ConfigManager:
             'playback_speed': 1.0,
             'output_directory': '',  # 添加输出目录配置项
             'auto_split': False,  # 添加自动切割配置项
-            'max_concurrent_videos': 2  # 默认同时处理2个视频
+            'max_concurrent_videos': 2,  # 默认同时处理2个视频
+            'show_preview': True,  # 添加是否显示预览的配置项
         }
 
     def save_config(self):
@@ -134,4 +135,13 @@ class ConfigManager:
         """
         count = max(1, int(count))  # 确保至少为1
         self.config['max_concurrent_videos'] = count
+        self.save_config()
+
+    def get_show_preview(self):
+        """获取是否显示预览界面"""
+        return self.config.get('show_preview', True)
+
+    def set_show_preview(self, show_preview):
+        """设置是否显示预览界面"""
+        self.config['show_preview'] = show_preview
         self.save_config()

@@ -24,6 +24,10 @@ class DetectionThread(QThread):
         self.parent = parent
         self._is_running = True
         self._current_progress = 0  # 当前进度
+        
+        # 同步预览显示设置
+        if hasattr(parent, 'settings_group'):
+            self.video_processor.show_preview = parent.settings_group.show_preview.isChecked()
 
     def stop(self):
         """停止检测线程"""

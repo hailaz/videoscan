@@ -56,12 +56,15 @@ class MainWindow(QMainWindow):
         self.operations_group = OperationsGroup(self)
         self.file_group = FileGroup(self)
         
+        # 连接预览显示设置变更信号
+        if hasattr(self, 'video_processor'):
+            self.settings_group.show_preview.stateChanged.connect(
+                lambda state: setattr(self.video_processor, 'show_preview', bool(state)))
         
         layout.addWidget(self.file_group)
         layout.addWidget(self.settings_group)
         layout.addWidget(self.operations_group)
         layout.addWidget(self.log_group)
-        
 
     def _apply_styles(self):
         """应用UI样式"""
