@@ -1,7 +1,7 @@
 """视频检测线程模块"""
 from PyQt5.QtCore import QThread, pyqtSignal
-from core.detector import MotionDetector
-from core.splitter import VideoSplitter
+from core.detector.motion_detector import MotionDetector  # 更新导入路径
+from core.splitter.video_splitter import VideoSplitter  # 更新导入路径
 from core.config_manager import ConfigManager
 from .video_processor import VideoProcessor
 import math

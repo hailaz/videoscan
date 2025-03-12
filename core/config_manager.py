@@ -36,6 +36,31 @@ class ConfigManager:
             'auto_split': False,  # 添加自动切割配置项
             'max_concurrent_videos': 2,  # 默认同时处理2个视频
             'show_preview': True,  # 添加是否显示预览的配置项
+            # 添加检测参数配置
+            'detection_params': {
+                'current': {
+                    'threshold': 25,
+                    'min_area': 1000,
+                    'static_time': 1.0
+                },
+                'presets': {
+                    '默认': {
+                        'threshold': 25,
+                        'min_area': 1000,
+                        'static_time': 1.0
+                    },
+                    '灵敏': {
+                        'threshold': 15,
+                        'min_area': 500,
+                        'static_time': 0.5
+                    },
+                    '稳定': {
+                        'threshold': 35,
+                        'min_area': 2000,
+                        'static_time': 2.0
+                    }
+                }
+            }
         }
 
     def save_config(self):
@@ -145,3 +170,44 @@ class ConfigManager:
         """设置是否显示预览界面"""
         self.config['show_preview'] = show_preview
         self.save_config()
+
+    def get_detection_params(self):
+        """获取当前检测参数"""
+        return self.config.get('detection_params', {}).get('current', {})
+
+    def set_detection_params(self, params):
+        """设置当前检测参数
+        
+        Args:
+            params: 包含 threshold、min_area、static_time 的字典
+        """
+        if 'detection_params' not in self.config:
+            self.config['detection_params'] = {'current': {}, 'presets': {}}
+        self.config['detection_params']['current'] = params
+        self.save_config()
+
+    def get_detection_presets(self):
+        """获取检测参数预设列表"""
+        return self.config.get('detection_params', {}).get('presets', {})
+
+    def add_detection_preset(self, name, params):
+        """添加检测参数预设
+        
+        Args:
+            name: 预设名称
+            params: 预设参数
+        """
+        if 'detection_params' not in self.config:
+            self.config['detection_params'] = {'current': {}, 'presets': {}}
+        self.config['detection_params']['presets'][name] = params
+        self.save_config()
+
+    def remove_detection_preset(self, name):
+        """删除检测参数预设
+        
+        Args:
+            name: 预设名称
+        """
+        if name in self.config.get('detection_params', {}).get('presets', {}):
+            del self.config['detection_params']['presets'][name]
+            self.save_config()
