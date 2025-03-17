@@ -7,7 +7,6 @@ from core.splitter import VideoSplitter
 from gui.detection_thread import DetectionThread
 from gui.components.file_group import FileGroup
 from gui.components.settings_group import SettingsGroup
-from gui.components.operations_group import OperationsGroup
 from gui.components.log_group import LogGroup
 from gui.components.styles import get_main_styles
 from gui.video_processor import VideoProcessor
@@ -53,18 +52,15 @@ class MainWindow(QMainWindow):
         # 创建并按顺序添加UI组件
         self.log_group = LogGroup(self)  # 先创建日志组件
         self.settings_group = SettingsGroup(self.hardware, self)
-        self.operations_group = OperationsGroup(self)
-        self.file_group = FileGroup(self)  # 最后创建文件组件
+        self.file_group = FileGroup(self)  # 文件组件（现在包含了操作按钮）
         
         # 调整组件高度策略
         self.file_group.setMaximumHeight(400)  # 限制文件列表最大高度
         self.settings_group.setMaximumHeight(150)  # 限制设置区域最大高度
-        self.operations_group.setMaximumHeight(80)  # 限制操作区域最大高度
         
         # 添加组件到布局
         layout.addWidget(self.file_group, 2)  # 分配相对空间
         layout.addWidget(self.settings_group, 1)
-        layout.addWidget(self.operations_group, 1)
         layout.addWidget(self.log_group, 2)
         
         # 在所有组件初始化完成后加载历史记录
@@ -104,9 +100,9 @@ class MainWindow(QMainWindow):
         file_paths = self.file_group.get_file_paths()
         if not file_paths:
             QMessageBox.warning(self, '警告', '请先选择视频文件！')
-            self.operations_group.detect_btn.setText('开始检测')
-            self.operations_group.detect_btn.setIcon(self.style().standardIcon(QStyle.SP_MediaPlay))
-            self.operations_group.is_detecting = False
+            self.file_group.detect_btn.setText('开始检测')
+            self.file_group.detect_btn.setIcon(self.style().standardIcon(QStyle.SP_MediaPlay))
+            self.file_group.is_detecting = False
             return
             
         # 重置状态
@@ -190,7 +186,7 @@ class MainWindow(QMainWindow):
             
             # 如果已经检测到了片段，则启用切割按钮
             if self.segments:
-                self.operations_group.split_btn.setEnabled(True)
+                self.file_group.split_btn.setEnabled(True)
                 self.log_message("可以进行视频切割操作")
 
     def update_detection_progress(self, value, file_path):
@@ -205,12 +201,12 @@ class MainWindow(QMainWindow):
         
         # 检查是否所有线程都已完成
         if self.active_threads == 0 and len(self.video_queue) == 0:
-            self.operations_group.detect_btn.setText('开始检测')
-            self.operations_group.detect_btn.setIcon(self.style().standardIcon(QStyle.SP_MediaPlay))
-            self.operations_group.is_detecting = False
+            self.file_group.detect_btn.setText('开始检测')
+            self.file_group.detect_btn.setIcon(self.style().standardIcon(QStyle.SP_MediaPlay))
+            self.file_group.is_detecting = False
             # 如果有检测到片段，启用切割按钮
             if self.segments:
-                self.operations_group.split_btn.setEnabled(True)
+                self.file_group.split_btn.setEnabled(True)
 
     def detection_finished(self, segments, file_path):
         """检测完成处理
@@ -247,12 +243,12 @@ class MainWindow(QMainWindow):
         # 检查是否所有视频都处理完成
         if self.completed_count == self.total_videos:
             self.log_message(f"\n所有视频处理完成！共处理 {self.completed_count} 个视频")
-            self.operations_group.detect_btn.setText('开始检测')
-            self.operations_group.detect_btn.setIcon(self.style().standardIcon(QStyle.SP_MediaPlay))
-            self.operations_group.is_detecting = False
+            self.file_group.detect_btn.setText('开始检测')
+            self.file_group.detect_btn.setIcon(self.style().standardIcon(QStyle.SP_MediaPlay))
+            self.file_group.is_detecting = False
             # 如果有检测到片段，启用切割按钮
             if self.segments:
-                self.operations_group.split_btn.setEnabled(True)
+                self.file_group.split_btn.setEnabled(True)
                 self.log_message("可以进行视频切割操作")
 
     def detection_error(self, error_msg, file_path):
@@ -272,13 +268,13 @@ class MainWindow(QMainWindow):
         # 如果所有视频都已完成或出错
         remaining_threads = sum(1 for thread in self.detection_threads.values() if thread.isRunning())
         if remaining_threads == 0 and len(self.video_queue) == 0:
-            self.operations_group.detect_btn.setText('开始检测')
-            self.operations_group.detect_btn.setIcon(self.style().standardIcon(QStyle.SP_MediaPlay))
-            self.operations_group.is_detecting = False
+            self.file_group.detect_btn.setText('开始检测')
+            self.file_group.detect_btn.setIcon(self.style().standardIcon(QStyle.SP_MediaPlay))
+            self.file_group.is_detecting = False
             
             # 如果有任何成功检测的片段，启用切割按钮
             if self.segments:
-                self.operations_group.split_btn.setEnabled(True)
+                self.file_group.split_btn.setEnabled(True)
                 self.log_message("可以对成功检测的视频进行切割操作")
 
     def split_video(self, auto=False):
